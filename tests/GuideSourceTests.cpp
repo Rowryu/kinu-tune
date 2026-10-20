@@ -165,6 +165,36 @@ int main()
         std::string error;
         CHECK(!loadGuideFromFile("/nonexistent/path/to/guide.mid", g, error));
         CHECK(!error.empty());
+
+        CHECK(!loadGuideFromBytes({}, "empty.mid", g, error));
+        CHECK(!error.empty());
+
+        const std::vector<std::uint8_t> garbage = {'n', 'o', 'p', 'e'};
+        CHECK(!loadGuideFromBytes(garbage, "garbage.mid", g, error));
+        CHECK(!error.empty());
+    }
+
+    // --- a non-ASCII file name survives ------------------------------------
+    {
+        // The plug-in hands over bytes and a display name precisely so a
+        // Japanese file name cannot be mangled by a narrow-path open, which
+        // is what broke the first build someone tried.
+        const std::vector<std::uint8_t> bytes = {
+            'M', 'T', 'h', 'd', 0, 0, 0, 6, 0, 0, 0, 1, 0x01, 0xE0,
+            'M', 'T', 'r', 'k', 0, 0, 0, 12,
+            0x00, 0x90, 60, 100,
+            0x81, 0x60, 0x80, 60, 0,
+            0x00, 0xFF, 0x2F, 0x00};
+
+        LoadedGuide g;
+        std::string error;
+        // Universal character names rather than literal bytes, so the
+        // test says the same thing whatever encoding this file is saved
+        // in. These three are "\u30ac\u30a4\u30c9" - guide.
+        const std::string name = u8"\u30ac\u30a4\u30c9.mid";
+        CHECK(loadGuideFromBytes(bytes, "C:\\music\\" + name, g, error));
+        CHECK(g.fileName == name);
+        CHECK(g.midi.notes.size() == 1);
     }
 
     std::cout << "Guide source tests passed\n";

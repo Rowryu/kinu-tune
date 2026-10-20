@@ -328,5 +328,6 @@
   "midiguide.status_outside": "The guide falls outside the audio. Check the tempo and offset.",
   "midiguide.status_no_notes": "This track has no notes",
   "midiguide.status_analyse_first": "Analyse the audio first",
-  "midiguide.status_corrected": "Corrected {corrected} of {matched} matched notes ({total} total)"
+  "midiguide.status_corrected": "Corrected {corrected} of {matched} matched notes ({total} total)",
+  "midiguide.load_unreadable": "the file could not be read"
 }

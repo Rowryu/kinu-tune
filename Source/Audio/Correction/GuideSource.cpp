@@ -54,21 +54,13 @@ std::vector<MidiNoteEvent> joinTiedNotes(const std::vector<MidiNoteEvent>& notes
     return joined;
 }
 
-bool loadGuideFromFile(const std::string& path,
-                       LoadedGuide& out,
-                       std::string& error)
+bool loadGuideFromBytes(const std::vector<std::uint8_t>& bytes,
+                        const std::string& displayName,
+                        LoadedGuide& out,
+                        std::string& error)
 {
     error.clear();
 
-    std::ifstream in(path, std::ios::binary);
-    if (!in)
-    {
-        error = "could not open the file";
-        return false;
-    }
-
-    const std::vector<std::uint8_t> bytes((std::istreambuf_iterator<char>(in)),
-                                          std::istreambuf_iterator<char>());
     if (bytes.empty())
     {
         error = "the file is empty";
@@ -87,8 +79,9 @@ bool loadGuideFromFile(const std::string& path,
 
     out.midi = std::move(parsed);
 
-    const auto slash = path.find_last_of("/\\");
-    out.fileName = slash == std::string::npos ? path : path.substr(slash + 1);
+    const auto slash = displayName.find_last_of("/\\");
+    out.fileName =
+        slash == std::string::npos ? displayName : displayName.substr(slash + 1);
 
     // A file with notes on exactly one track needs no choosing.
     out.selectedTrack = out.midi.tracksWithNotes.size() == 1
@@ -97,6 +90,24 @@ bool loadGuideFromFile(const std::string& path,
 
     out.notes.clear();
     return true;
+}
+
+bool loadGuideFromFile(const std::string& path,
+                       LoadedGuide& out,
+                       std::string& error)
+{
+    error.clear();
+
+    std::ifstream in(path, std::ios::binary);
+    if (!in)
+    {
+        error = "could not open the file";
+        return false;
+    }
+
+    const std::vector<std::uint8_t> bytes((std::istreambuf_iterator<char>(in)),
+                                          std::istreambuf_iterator<char>());
+    return loadGuideFromBytes(bytes, path, out, error);
 }
 
 void rebuildGuideNotes(LoadedGuide& guide, double framesPerSecond)

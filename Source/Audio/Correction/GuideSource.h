@@ -66,8 +66,25 @@ struct LoadedGuide
     double lastNoteSeconds() const;
 };
 
+/// Parse MIDI bytes already read from somewhere into `out`, labelling it
+/// `displayName`. Returns false and fills `error` when they cannot be parsed.
+///
+/// This is the entry point the plug-in uses, because opening the file is the
+/// caller's job: on Windows std::ifstream takes a narrow path in the system
+/// code page, so a UTF-8 path - which is what juce::String produces - fails
+/// to open for any name outside ASCII. JUCE opens files by wide path and
+/// gets this right, so the UI hands over bytes rather than a path.
+bool loadGuideFromBytes(const std::vector<std::uint8_t>& bytes,
+                        const std::string& displayName,
+                        LoadedGuide& out,
+                        std::string& error);
+
 /// Read a MIDI file from disk into `out`. Returns false and fills `error`
 /// on a file that cannot be read or parsed.
+///
+/// Opens the path with std::ifstream, so it is only safe where the path is
+/// ASCII - tests and command-line tools. The plug-in uses
+/// loadGuideFromBytes.
 bool loadGuideFromFile(const std::string& path,
                        LoadedGuide& out,
                        std::string& error);

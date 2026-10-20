@@ -326,5 +326,6 @@
   "midiguide.status_outside": "ガイドが音声の外にあります。テンポと位置を確かめてください",
   "midiguide.status_no_notes": "このトラックには音がありません",
   "midiguide.status_analyse_first": "先に音声を解析してください",
-  "midiguide.status_corrected": "{total} 音のうち {matched} 音が対応し、{corrected} 音を補正しました"
+  "midiguide.status_corrected": "{total} 音のうち {matched} 音が対応し、{corrected} 音を補正しました",
+  "midiguide.load_unreadable": "ファイルを開けません"
 }

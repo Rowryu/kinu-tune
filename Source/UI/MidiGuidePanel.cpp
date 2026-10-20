@@ -4,6 +4,9 @@
 
 #include "MidiGuidePanel.h"
 
+#include <cstdint>
+#include <vector>
+
 #include "../Utils/Constants.h"
 #include "../Utils/UI/Theme.h"
 #include "Components/AppFont.h"
@@ -247,10 +250,26 @@ void MidiGuidePanel::chooseFile()
             if (!file.existsAsFile())
                 return;
 
+            // Read through JUCE rather than by path. std::ifstream takes a
+            // narrow path in the system code page on Windows, so a UTF-8
+            // path - which is what juce::String gives - cannot open a file
+            // whose name is not ASCII. A Japanese file name failed here.
+            juce::MemoryBlock block;
+            if (!file.loadFileAsData(block) || block.getSize() == 0)
+            {
+                safeThis->showStatus(TR("midiguide.load_failed") + " " +
+                                         TR("midiguide.load_unreadable"),
+                                     true);
+                return;
+            }
+
+            const auto* raw = static_cast<const std::uint8_t*>(block.getData());
+            const std::vector<std::uint8_t> bytes(raw, raw + block.getSize());
+
             std::string error;
             correction::LoadedGuide loaded;
-            if (!correction::loadGuideFromFile(file.getFullPathName().toStdString(),
-                                               loaded, error))
+            if (!correction::loadGuideFromBytes(
+                    bytes, file.getFileName().toStdString(), loaded, error))
             {
                 safeThis->showStatus(TR("midiguide.load_failed") + " " +
                                          juce::String(error),
@@ -264,8 +283,9 @@ void MidiGuidePanel::chooseFile()
             loaded.placement = safeThis->guide.placement;
             safeThis->guide = std::move(loaded);
 
-            safeThis->fileLabel.setText(juce::String(safeThis->guide.fileName),
-                                        juce::dontSendNotification);
+            safeThis->fileLabel.setText(
+                juce::String::fromUTF8(safeThis->guide.fileName.c_str()),
+                juce::dontSendNotification);
             safeThis->refreshTrackMenu();
             safeThis->applyPlacement();
         });
