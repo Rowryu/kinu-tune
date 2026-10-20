@@ -1,0 +1,141 @@
+# Reproduces plug-in load and instantiation failures on Windows without
+# needing a DAW, by running pluginval against a fresh build.
+#
+# The question this exists to answer: Kinu Tune appears in the host's plug-in
+# list but fails the moment it is inserted on a track. Scanning therefore
+# succeeds and something during instantiation does not, so the useful split is
+# between "constructing the processor fails" and "creating the editor fails",
+# and between "the AI models are installed" and "they are not".
+#
+# Each scenario runs on its own and is allowed to fail, so one failure does
+# not hide the others' results. Read the summary table at the end of the run.
+#
+# NOT covered here: the Visual C++ redistributable. The runner has Visual
+# Studio installed, so MSVCP140/VCRUNTIME140 are always present. A green run
+# does not rule that out on a clean machine.
+name: Windows diagnose
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch or commit to build"
+        required: false
+        default: ""
+
+jobs:
+  diagnose:
+    runs-on: windows-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout the source with submodules
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+          submodules: recursive
+          persist-credentials: false
+
+      - name: Configure
+        run: cmake -B build -DUSE_DIRECTML=OFF -DPITCHNET_DEV_BUILD=OFF -DPITCHNET_ARA_DIAGNOSTICS=ON -DPITCHNET_BUILD_TESTS=OFF
+
+      - name: Build the VST3
+        run: cmake --build build --config Release --target PitchNetPlugin_VST3 --parallel
+
+      - name: Record what the build produced
+        shell: pwsh
+        run: |
+          $vst3 = "build/PitchNetPlugin_artefacts/Release/VST3/Kinu Tune.vst3"
+          if (-not (Test-Path $vst3)) { throw "VST3 bundle not found at $vst3" }
+          Get-ChildItem -Recurse $vst3 | Select-Object FullName, Length |
+            Format-Table -AutoSize | Out-String -Width 400
+
+      - name: Fetch pluginval
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri "https://github.com/Tracktion/pluginval/releases/download/v1.0.4/pluginval_Windows.zip" -OutFile pluginval.zip
+          Expand-Archive pluginval.zip -DestinationPath pluginval
+          Get-ChildItem -Recurse pluginval | Select-Object FullName | Out-String -Width 400
+
+      # Scenario 1: no models installed. If the processor's constructor needs
+      # them, this is where it shows, and it is also the state a user is in
+      # when they copy the .vst3 but miss the models folder.
+      - name: "Scenario 1 - no models, no GUI"
+        id: s1
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          & "pluginval/pluginval.exe" --strictness-level 5 --skip-gui-tests --timeout-ms 600000 --validate "build/PitchNetPlugin_artefacts/Release/VST3/Kinu Tune.vst3" 2>&1 |
+            Tee-Object -FilePath logs-1-no-models-no-gui.txt
+          exit $LASTEXITCODE
+
+      - name: Install the AI models
+        shell: pwsh
+        run: |
+          $dest = Join-Path $env:APPDATA "Keinoaza\Kinu Tune\models"
+          New-Item -ItemType Directory -Force -Path $dest | Out-Null
+          foreach ($f in "fcpe.onnx", "cent_table.bin", "mel_filterbank.bin", "pc_nsf_hifigan.onnx") {
+            Copy-Item "Resources/models/$f" $dest
+          }
+          if (Test-Path "Resources/models/GAME") { Copy-Item -Recurse "Resources/models/GAME" $dest }
+          Get-ChildItem -Recurse $dest | Select-Object FullName, Length | Out-String -Width 400
+
+      # Scenario 2: the supported install. A failure here is a real bug rather
+      # than a missing file.
+      - name: "Scenario 2 - models installed, no GUI"
+        id: s2
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          & "pluginval/pluginval.exe" --strictness-level 5 --skip-gui-tests --timeout-ms 600000 --validate "build/PitchNetPlugin_artefacts/Release/VST3/Kinu Tune.vst3" 2>&1 |
+            Tee-Object -FilePath logs-2-models-no-gui.txt
+          exit $LASTEXITCODE
+
+      # Scenario 3: the editor. Inserting a plug-in on a track opens its
+      # window, so the editor is a prime suspect; the binary pulls in Direct2D
+      # (d2d1/d3d11/dcomp), which is exactly the kind of thing that works on a
+      # developer's machine and not elsewhere.
+      #
+      # Caveat: a GitHub runner has no interactive desktop, so a failure here
+      # is suggestive, not conclusive. Compare it against scenario 2.
+      - name: "Scenario 3 - models installed, with GUI"
+        id: s3
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          & "pluginval/pluginval.exe" --strictness-level 5 --timeout-ms 600000 --validate "build/PitchNetPlugin_artefacts/Release/VST3/Kinu Tune.vst3" 2>&1 |
+            Tee-Object -FilePath logs-3-models-gui.txt
+          exit $LASTEXITCODE
+
+      - name: Collect any plug-in logs
+        if: always()
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $logs = Join-Path $env:APPDATA "Kinu Tune\Logs"
+          if (Test-Path $logs) { Copy-Item -Recurse $logs "plugin-logs" }
+          else { "no plug-in log directory at $logs" | Out-File "plugin-logs-absent.txt" }
+
+      - name: Summary
+        if: always()
+        shell: pwsh
+        run: |
+          $rows = @(
+            [pscustomobject]@{ Scenario = "1 no models, no GUI";  Result = "${{ steps.s1.outcome }}" }
+            [pscustomobject]@{ Scenario = "2 models, no GUI";     Result = "${{ steps.s2.outcome }}" }
+            [pscustomobject]@{ Scenario = "3 models, with GUI";   Result = "${{ steps.s3.outcome }}" }
+          )
+          $table = $rows | Format-Table -AutoSize | Out-String -Width 200
+          $table
+          "## pluginval results`n`n``````$table```````n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+
+      - name: Upload the logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-diagnose-logs
+          path: |
+            logs-*.txt
+            plugin-logs/
+            plugin-logs-absent.txt
+          if-no-files-found: warn
+          retention-days: 14
