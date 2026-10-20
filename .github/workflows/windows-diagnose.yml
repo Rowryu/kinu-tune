@@ -128,6 +128,21 @@ jobs:
           $table
           "## pluginval results`n`n``````$table```````n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
 
+      # pluginval can exit 0 without having validated anything, so confirm the
+      # logs actually contain its verdict rather than trusting the exit code.
+      - name: Assert pluginval really ran
+        if: always()
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          foreach ($f in Get-ChildItem logs-*.txt) {
+            $text = Get-Content $f.FullName -Raw
+            "--- $($f.Name): $($text.Length) chars ---"
+            if ($text -notmatch "Validating|pluginval") {
+              throw "$($f.Name) contains no pluginval output"
+            }
+          }
+
       - name: Upload the logs
         if: always()
         uses: actions/upload-artifact@v7
@@ -139,3 +154,28 @@ jobs:
             plugin-logs-absent.txt
           if-no-files-found: warn
           retention-days: 14
+
+      # Artifacts and raw job logs are served from blob storage that some
+      # environments cannot reach, so the logs are also committed to a branch
+      # where a plain git fetch can get at them. The branch holds the most
+      # recent run only and is force-pushed; it is a drop box, not history.
+      - name: Publish the logs to the ci-logs branch
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -eu
+          work=/tmp/logrepo
+          dest="$work/runs/${{ github.run_id }}"
+          rm -rf "$work"
+          mkdir -p "$dest"
+          cp logs-*.txt "$dest/" 2>/dev/null || true
+          cp -r plugin-logs "$dest/" 2>/dev/null || true
+          cp plugin-logs-absent.txt "$dest/" 2>/dev/null || true
+          cd "$work"
+          git init -q -b ci-logs
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Windows diagnose logs for run ${{ github.run_id }}"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" ci-logs
