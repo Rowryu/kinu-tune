@@ -40,8 +40,19 @@ jobs:
       - name: Build
         run: cmake --build build --config Release --parallel 3
 
+      # --no-tests=error because ctest exits 0 when it finds nothing to run, so
+      # without it a test that failed to register reads as a green run - the
+      # same vacuous pass that tests/CMakeLists.txt warns about for assert().
       - name: Run the unit tests
-        run: ctest --test-dir build --output-on-failure
+        run: ctest --test-dir build --output-on-failure --no-tests=error
+
+      # The correction suites are named explicitly so that losing one of them
+      # from the build is a failure rather than a smaller test run nobody
+      # notices.
+      - name: Run the correction test suites
+        run: >
+          ctest --test-dir build --output-on-failure --no-tests=error
+          -R "ExpressionShapingTests|MidiFileReaderTests|MidiGuideCorrectionTests|TimingMapTests"
 
   windows-build:
     runs-on: windows-latest
