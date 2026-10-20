@@ -1,7 +1,7 @@
 # Reproduces plug-in load and instantiation failures on Windows without
 # needing a DAW, by running pluginval against a fresh build.
 #
-# The question this exists to answer: Kinu Tune appears in the host's plug-in
+# The question this exists to answer: Kisyo Tune appears in the host's plug-in
 # list but fails the moment it is inserted on a track. Scanning therefore
 # succeeds and something during instantiation does not, so the useful split is
 # between "constructing the processor fails" and "creating the editor fails",
@@ -47,7 +47,7 @@ jobs:
       - name: Record what the build produced
         shell: pwsh
         run: |
-          $vst3 = "build/PitchNetPlugin_artefacts/Release/VST3/Kinu Tune.vst3"
+          $vst3 = "build/PitchNetPlugin_artefacts/Release/VST3/Kisyo Tune.vst3"
           if (-not (Test-Path $vst3)) { throw "VST3 bundle not found at $vst3" }
           Get-ChildItem -Recurse $vst3 | Select-Object FullName, Length |
             Format-Table -AutoSize | Out-String -Width 400
@@ -67,14 +67,14 @@ jobs:
         continue-on-error: true
         shell: pwsh
         run: |
-          & "pluginval/pluginval.exe" --strictness-level 5 --skip-gui-tests --timeout-ms 600000 --validate "build/PitchNetPlugin_artefacts/Release/VST3/Kinu Tune.vst3" 2>&1 |
+          & "pluginval/pluginval.exe" --strictness-level 5 --skip-gui-tests --timeout-ms 600000 --validate "build/PitchNetPlugin_artefacts/Release/VST3/Kisyo Tune.vst3" 2>&1 |
             Tee-Object -FilePath logs-1-no-models-no-gui.txt
           exit $LASTEXITCODE
 
       - name: Install the AI models
         shell: pwsh
         run: |
-          $dest = Join-Path $env:APPDATA "Keinoaza\Kinu Tune\models"
+          $dest = Join-Path $env:APPDATA "Keinoaza\Kisyo Tune\models"
           New-Item -ItemType Directory -Force -Path $dest | Out-Null
           foreach ($f in "fcpe.onnx", "cent_table.bin", "mel_filterbank.bin", "pc_nsf_hifigan.onnx") {
             Copy-Item "Resources/models/$f" $dest
@@ -89,7 +89,7 @@ jobs:
         continue-on-error: true
         shell: pwsh
         run: |
-          & "pluginval/pluginval.exe" --strictness-level 5 --skip-gui-tests --timeout-ms 600000 --validate "build/PitchNetPlugin_artefacts/Release/VST3/Kinu Tune.vst3" 2>&1 |
+          & "pluginval/pluginval.exe" --strictness-level 5 --skip-gui-tests --timeout-ms 600000 --validate "build/PitchNetPlugin_artefacts/Release/VST3/Kisyo Tune.vst3" 2>&1 |
             Tee-Object -FilePath logs-2-models-no-gui.txt
           exit $LASTEXITCODE
 
@@ -105,7 +105,7 @@ jobs:
         continue-on-error: true
         shell: pwsh
         run: |
-          & "pluginval/pluginval.exe" --strictness-level 5 --timeout-ms 600000 --validate "build/PitchNetPlugin_artefacts/Release/VST3/Kinu Tune.vst3" 2>&1 |
+          & "pluginval/pluginval.exe" --strictness-level 5 --timeout-ms 600000 --validate "build/PitchNetPlugin_artefacts/Release/VST3/Kisyo Tune.vst3" 2>&1 |
             Tee-Object -FilePath logs-3-models-gui.txt
           exit $LASTEXITCODE
 
@@ -114,7 +114,7 @@ jobs:
         continue-on-error: true
         shell: pwsh
         run: |
-          $logs = Join-Path $env:APPDATA "Kinu Tune\Logs"
+          $logs = Join-Path $env:APPDATA "Kisyo Tune\Logs"
           if (Test-Path $logs) { Copy-Item -Recurse $logs "plugin-logs" }
           else { "no plug-in log directory at $logs" | Out-File "plugin-logs-absent.txt" }
 

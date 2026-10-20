@@ -241,17 +241,17 @@ set(PITCHNET_MANUFACTURER_CODE Kein)
 set(PITCHNET_COPYRIGHT
     "Copyright 2026 Session Loops, HachiTune contributors and Keinoaza")
 if(PITCHNET_DEV_BUILD)
-    set(PITCHNET_PRODUCT_NAME "Kinu Tune Dev")
-    set(PITCHNET_BUNDLE_ID "com.keinoaza.kinutune.dev")
-    set(PITCHNET_PLUGIN_CODE Kntd)
+    set(PITCHNET_PRODUCT_NAME "Kisyo Tune Dev")
+    set(PITCHNET_BUNDLE_ID "com.keinoaza.kisyotune.dev")
+    set(PITCHNET_PLUGIN_CODE Kstd)
     message(STATUS
         "Kinu Tune: side-by-side DEV build "
         "(product '${PITCHNET_PRODUCT_NAME}', plugin code ${PITCHNET_PLUGIN_CODE}, "
         "bundle id ${PITCHNET_BUNDLE_ID})")
 else()
-    set(PITCHNET_PRODUCT_NAME "Kinu Tune")
-    set(PITCHNET_BUNDLE_ID "com.keinoaza.kinutune")
-    set(PITCHNET_PLUGIN_CODE Kntu)
+    set(PITCHNET_PRODUCT_NAME "Kisyo Tune")
+    set(PITCHNET_BUNDLE_ID "com.keinoaza.kisyotune")
+    set(PITCHNET_PLUGIN_CODE Kstu)
 endif()
 
 # Per-dirty-note synthesis diagnostics. synthesizeRegion() always logs a few

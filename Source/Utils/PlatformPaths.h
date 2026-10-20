@@ -6,26 +6,36 @@
  * Platform-specific path utilities.
  *
  * macOS:
- *   - Models: ~/Library/Application Support/Keinoaza/Kinu Tune/models/, then
- *             /Library/Application Support/Keinoaza/Kinu Tune/models/
- *   - Logs: ~/Library/Logs/Kinu Tune/
- *   - Config: ~/Library/Kinu Tune/
+ *   - Models: ~/Library/Application Support/Keinoaza/Kisyo Tune/models/, then
+ *             /Library/Application Support/Keinoaza/Kisyo Tune/models/,
+ *             then the same two under "Kinu Tune"
+ *   - Logs: ~/Library/Logs/Kisyo Tune/
+ *   - Config: ~/Library/Kisyo Tune/
  *
  * Windows:
- *   - Models: %APPDATA%/Keinoaza/Kinu Tune/models/, then
- *             %PROGRAMDATA%/Keinoaza/Kinu Tune/models/
- *   - Logs: %APPDATA%/Kinu Tune/Logs/
- *   - Config: %APPDATA%/Kinu Tune/
+ *   - Models: %APPDATA%/Keinoaza/Kisyo Tune/models/, then
+ *             %PROGRAMDATA%/Keinoaza/Kisyo Tune/models/,
+ *             then the same two under "Kinu Tune"
+ *   - Logs: %APPDATA%/Kisyo Tune/Logs/
+ *   - Config: %APPDATA%/Kisyo Tune/
  *
  * Linux:
  *   - Models: <exe_dir>/models/
- *   - Logs: ~/.config/Kinu Tune/logs/
- *   - Config: ~/.config/Kinu Tune/
+ *   - Logs: ~/.config/Kisyo Tune/logs/
+ *   - Config: ~/.config/Kisyo Tune/
  */
 namespace PlatformPaths
 {
     inline constexpr const char *kVendorFolderName = "Keinoaza";
-    inline constexpr const char *kProductFolderName = "Kinu Tune";
+    inline constexpr const char *kProductFolderName = "Kisyo Tune";
+
+    // Kisyo Tune is a fork of Kinu Tune and uses the same model files. An
+    // existing Kinu Tune install already has them - around 130 MB - so the
+    // models folder is looked for under the old name too. That keeps a
+    // Kisyo Tune download to the plug-in itself and means nobody has to
+    // place the same files twice. It is read-only reuse: nothing is written
+    // to the other product's folder.
+    inline constexpr const char *kLegacyProductFolderName = "Kinu Tune";
 
     inline juce::File getProjectResourcesDirectory()
     {
@@ -51,22 +61,35 @@ namespace PlatformPaths
 
         return {};
 #else
-        // Kinu Tune keeps its resources apart from PitchNet's. The per-user
-        // folder comes first so a local install needs no administrator rights.
-        auto resourcesUnder = [](juce::File::SpecialLocationType location)
+        // Kisyo Tune keeps its resources apart from PitchNet's. The per-user
+        // folder comes first so a local install needs no administrator rights,
+        // and this product's own folder comes before the one it inherited the
+        // models from, so a Kisyo Tune install always wins.
+        auto resourcesUnder = [](juce::File::SpecialLocationType location,
+                                 const char *productFolder)
         {
             return juce::File::getSpecialLocation(location)
 #if JUCE_MAC
                 .getChildFile("Application Support")
 #endif
                 .getChildFile(kVendorFolderName)
-                .getChildFile(kProductFolderName);
+                .getChildFile(productFolder);
         };
 
-        auto userResources = resourcesUnder(juce::File::userApplicationDataDirectory);
-        if (userResources.getChildFile("models").isDirectory())
-            return userResources;
-        return resourcesUnder(juce::File::commonApplicationDataDirectory);
+        const juce::File candidates[] = {
+            resourcesUnder(juce::File::userApplicationDataDirectory, kProductFolderName),
+            resourcesUnder(juce::File::commonApplicationDataDirectory, kProductFolderName),
+            resourcesUnder(juce::File::userApplicationDataDirectory, kLegacyProductFolderName),
+            resourcesUnder(juce::File::commonApplicationDataDirectory, kLegacyProductFolderName),
+        };
+
+        for (const auto &candidate : candidates)
+            if (candidate.getChildFile("models").isDirectory())
+                return candidate;
+
+        // Nothing found: name this product's own per-user folder, so the
+        // "models are missing" message points where they should be put.
+        return candidates[0];
 #endif
     }
 

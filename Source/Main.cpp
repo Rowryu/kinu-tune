@@ -87,7 +87,7 @@ public:
 
     g.setColour(juce::Colours::white);
     g.setFont(titleFont);
-    g.drawText("Kinu Tune", getLocalBounds().reduced(24, 20),
+    g.drawText("Kisyo Tune", getLocalBounds().reduced(24, 20),
                juce::Justification::centredTop);
 
     g.setColour(juce::Colour(APP_COLOR_PRIMARY));
@@ -145,7 +145,7 @@ class PitchNetApplication : public juce::JUCEApplication {
 public:
   PitchNetApplication() {}
 
-  const juce::String getApplicationName() override { return "Kinu Tune"; }
+  const juce::String getApplicationName() override { return "Kisyo Tune"; }
 
   const juce::String getApplicationVersion() override { return "0.1.1"; }
 

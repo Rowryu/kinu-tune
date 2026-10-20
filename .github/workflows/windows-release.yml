@@ -44,32 +44,65 @@ jobs:
       - name: Build the VST3
         run: cmake --build build --config Release --target PitchNetPlugin_VST3 --parallel
 
+      # Two zips, because they answer different needs. The models are about
+      # 130 MB of the 147 and never change between builds, so anyone who has
+      # installed this plug-in - or Kinu Tune, whose models it reads as a
+      # fallback - needs only the plug-in to try a new build. The full zip
+      # stays for a first install.
       - name: Package
         shell: pwsh
         run: |
           $version = "$env:RELEASE_TAG".TrimStart('v')
           if (-not $version) { $version = "test-$($env:GITHUB_SHA.Substring(0,8))" }
-          $name = "Kinu-Tune-$version-Windows-x64"
-          New-Item -ItemType Directory -Force -Path "$name/models", "$name/licenses" | Out-Null
-          Copy-Item -Recurse "build/PitchNetPlugin_artefacts/Release/VST3/Kinu Tune.vst3" "$name/"
-          foreach ($f in "fcpe.onnx", "cent_table.bin", "mel_filterbank.bin", "pc_nsf_hifigan.onnx") {
-            Copy-Item "Resources/models/$f" "$name/models/"
+          $base = "Kisyo-Tune-$version-Windows-x64"
+          $lite = "$base-plugin-only"
+          $vst3 = "build/PitchNetPlugin_artefacts/Release/VST3/Kisyo Tune.vst3"
+          if (-not (Test-Path $vst3)) { throw "VST3 bundle not found at $vst3" }
+
+          foreach ($dir in $base, $lite) {
+            New-Item -ItemType Directory -Force -Path "$dir/licenses" | Out-Null
+            Copy-Item -Recurse $vst3 "$dir/"
+            Copy-Item LICENSE, THIRD_PARTY_NOTICES.txt, MODIFICATIONS.md "$dir/"
+            Copy-Item licenses/* "$dir/licenses/"
           }
-          Copy-Item -Recurse "Resources/models/GAME" "$name/models/"
-          Copy-Item LICENSE, THIRD_PARTY_NOTICES.txt, MODIFICATIONS.md "$name/"
-          Copy-Item licenses/* "$name/licenses/"
-          Copy-Item packaging/INSTALL-Windows.txt "$name/INSTALL.txt"
-          Compress-Archive -Path $name -DestinationPath "$name.zip"
-          "ZIP_NAME=$name" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+          New-Item -ItemType Directory -Force -Path "$base/models" | Out-Null
+          foreach ($f in "fcpe.onnx", "cent_table.bin", "mel_filterbank.bin", "pc_nsf_hifigan.onnx") {
+            Copy-Item "Resources/models/$f" "$base/models/"
+          }
+          Copy-Item -Recurse "Resources/models/GAME" "$base/models/"
+          Copy-Item packaging/INSTALL-Windows.txt "$base/INSTALL.txt"
+          Copy-Item packaging/INSTALL-Windows-plugin-only.txt "$lite/INSTALL.txt"
+
+          Compress-Archive -Path $base -DestinationPath "$base.zip"
+          Compress-Archive -Path $lite -DestinationPath "$lite.zip"
+
+          "ZIP_NAME=$base" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "LITE_ZIP_NAME=$lite" | Out-File -FilePath $env:GITHUB_ENV -Append
+          Get-ChildItem *.zip | ForEach-Object {
+            "{0}  {1:N1} MB" -f $_.Name, ($_.Length / 1MB)
+          }
 
       - name: Attach to the release
         if: ${{ inputs.tag != '' && inputs.ref == '' }}
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "$env:RELEASE_TAG" "$env:ZIP_NAME.zip" --repo "$env:GITHUB_REPOSITORY" --clobber
+        run: |
+          gh release upload "$env:RELEASE_TAG" "$env:ZIP_NAME.zip" "$env:LITE_ZIP_NAME.zip" --repo "$env:GITHUB_REPOSITORY" --clobber
 
-      - name: Keep the test build as a workflow artifact
+      # Uploaded separately so the plug-in can be downloaded on its own:
+      # a single artifact holding both would make every download carry the
+      # models again.
+      - name: Keep the plug-in-only build as a workflow artifact
+        if: ${{ inputs.tag == '' || inputs.ref != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.LITE_ZIP_NAME }}
+          path: ${{ env.LITE_ZIP_NAME }}.zip
+          retention-days: 14
+
+      - name: Keep the full build as a workflow artifact
         if: ${{ inputs.tag == '' || inputs.ref != '' }}
         uses: actions/upload-artifact@v7
         with:

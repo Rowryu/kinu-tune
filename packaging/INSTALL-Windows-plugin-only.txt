@@ -1,0 +1,35 @@
+Kisyo Tune - Windows (x64) プラグインのみ / plug-in only
+
+このzipにはAIモデルが入っていません。すでに Kisyo Tune か Kinu Tune の
+モデルを入れてある場合に使ってください(Kisyo Tune は Kinu Tune のモデルを
+そのまま読みます)。初めて入れる場合は models 入りのzipを使ってください。
+
+This zip contains no AI models. Use it when the models are already
+installed, either for Kisyo Tune or for Kinu Tune - Kisyo Tune reads
+Kinu Tune's models as a fallback. For a first install, use the zip that
+includes the models.
+
+1. "Kisyo Tune.vst3" フォルダーを次の場所にコピーします(上書き)。
+   Copy the "Kisyo Tune.vst3" folder to (overwriting):
+     C:\Program Files\Common Files\VST3\
+
+2. DAW を起動し直します。
+   Restart your DAW.
+
+モデルは次のどちらかにあれば読み込まれます。
+Models are read from whichever of these exists, in this order:
+     %APPDATA%\Keinoaza\Kisyo Tune\models\
+     %APPDATA%\Keinoaza\Kinu Tune\models\
+
+ダウンロードした zip の中身がブロックされて読み込めない場合は、zip の
+プロパティで「許可する(ブロック解除)」にしてから展開してください。
+If Windows blocks the downloaded files, open the zip's Properties, tick
+"Unblock", then extract again.
+
+Kisyo Tune は Kinu Tune とは別のプラグインとして DAW に表示されます
+(別のプラグイン ID を持つため、両方を同時に入れておけます)。
+Kisyo Tune appears in your DAW as a separate plug-in from Kinu Tune: it
+has its own plug-in identifier, so both can be installed side by side.
+
+ライセンス / Licenses: LICENSE (GNU AGPL v3), THIRD_PARTY_NOTICES.txt, licenses\
+Source code: https://github.com/Rowryu/kinu-tune

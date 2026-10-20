@@ -1,23 +1,58 @@
 # Modifications
 
-Kinu Tune is a modified version of [PitchNet](https://github.com/SessionLoops/PitchNet)
-0.7.2 by Session Loops, which is itself a modified derivative of
+Kisyo Tune is a modified version of [Kinu Tune](https://github.com/keinoaza666-stack/kinu-tune)
+by Keinoaza, which is a modified version of
+[PitchNet](https://github.com/SessionLoops/PitchNet) 0.7.2 by Session Loops,
+which is itself a modified derivative of
 [HachiTune](https://github.com/KCKT0112/HachiTune). This file is the notice of
 modification required by section 5(a) of the GNU Affero General Public License,
 version 3.
 
-- Modified by: Keinoaza
-- Date of modification: 2026-10-19 (first release, Kinu Tune 0.1.0); continued through 2026-10-20 (Kinu Tune 0.1.1)
-- Based on: SessionLoops/PitchNet commit `8787321` ("Disable file logging in release builds")
+- Modified by: Rowryu (Kisyo Tune); Keinoaza (Kinu Tune)
+- Date of modification: 2026-10-20 onwards (Kisyo Tune); 2026-10-19 to 2026-10-20 (Kinu Tune 0.1.0, 0.1.1)
+- Based on: keinoaza666-stack/kinu-tune commit `438c5e8` ("Strip the build machine's rpath from the macOS bundles"),
+  itself based on SessionLoops/PitchNet commit `8787321` ("Disable file logging in release builds")
 - License of the modified work: GNU Affero General Public License, version 3 (see [LICENSE](LICENSE))
 
-The full history of the changes is in the git log of this repository.
+Copyright notices and attribution for PitchNet, HachiTune and Kinu Tune are
+kept unchanged; see [README](README.md) and [THIRD_PARTY_NOTICES.txt](THIRD_PARTY_NOTICES.txt).
 
-## Summary of changes
+## Changes made in Kisyo Tune
+
+### Identity
+- Renamed to Kisyo Tune with its own plug-in identity: plugin code `Kstu`
+  (`Kstd` for development builds), bundle id `com.keinoaza.kisyotune`. The
+  vendor code `Kein` is unchanged, so the VST3 class ids differ from Kinu
+  Tune's and the two can be installed side by side without one shadowing the
+  other in a host's plug-in list.
+- Settings, logs and models move to `Kisyo Tune` folders. The models folder
+  is also looked for under `Kinu Tune`, after the Kisyo Tune one, because the
+  model files are identical and about 130 MB: an existing Kinu Tune install
+  is reused rather than duplicated. Nothing is written to that folder.
+
+### MIDI guide pitch correction
+- Reads a Standard MIDI File as a guide melody, matches each sung note to a
+  guide note with a monotonic DTW alignment, and moves the note centre
+  towards it while leaving `deltaPitch` - vibrato, scoops, falls, portamento
+  - untouched.
+- Correction is scaled by both a strength control and the match confidence,
+  then clamped by a maximum shift, so a doubtful match is nudged rather than
+  dragged to a wrong pitch.
+- Tempo and offset controls place the guide against the audio, for exports
+  that do not carry the project tempo.
+- New inspector card, Japanese and English strings; other languages fall back
+  to English.
+- Timing-map construction for automatic timing correction exists but is not
+  yet connected to synthesis.
+
+## Changes inherited from Kinu Tune
+
+The full history of the changes is in the git log of this repository.
 
 ### Identity
 - Product name Kinu Tune, vendor Keinoaza, plugin codes `Kein` / `Kntu`
   (`Kntd` for development builds), bundle id `com.keinoaza.kinutune`.
+  (Superseded by Kisyo Tune's identity above.)
 - Settings folder `~/Library/Kinu Tune/` (macOS), logs `~/Library/Logs/Kinu Tune/`, models
   `~/Library/Application Support/Keinoaza/Kinu Tune/models/`.
 - New icon and logo images.
