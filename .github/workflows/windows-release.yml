@@ -16,6 +16,11 @@ on:
         description: "Test build: build this branch or commit instead of the tag and keep the zip as a workflow artifact (the release is not changed)"
         required: false
         default: ""
+      diagnostics:
+        description: "Build with ARA diagnostics, which log the model graph to %APPDATA%/Kisyo Tune/Logs/. For investigating a host that does not load audio."
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: write
@@ -39,7 +44,10 @@ jobs:
       # does) and the CPU build of ONNX Runtime; DirectML is the Windows
       # default in CMakeLists.txt, so turn it off explicitly.
       - name: Configure
-        run: cmake -B build -DUSE_DIRECTML=OFF -DPITCHNET_DEV_BUILD=OFF -DPITCHNET_ARA_DIAGNOSTICS=OFF -DPITCHNET_BUILD_TESTS=OFF
+        run: >
+          cmake -B build -DUSE_DIRECTML=OFF -DPITCHNET_DEV_BUILD=OFF
+          -DPITCHNET_ARA_DIAGNOSTICS=${{ inputs.diagnostics && 'ON' || 'OFF' }}
+          -DPITCHNET_BUILD_TESTS=OFF
 
       - name: Build the VST3
         run: cmake --build build --config Release --target PitchNetPlugin_VST3 --parallel
@@ -54,6 +62,7 @@ jobs:
         run: |
           $version = "$env:RELEASE_TAG".TrimStart('v')
           if (-not $version) { $version = "test-$($env:GITHUB_SHA.Substring(0,8))" }
+          if ("${{ inputs.diagnostics }}" -eq "true") { $version = "$version-aradiag" }
           $base = "Kisyo-Tune-$version-Windows-x64"
           $lite = "$base-plugin-only"
           $vst3 = "build/PitchNetPlugin_artefacts/Release/VST3/Kisyo Tune.vst3"
