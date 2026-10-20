@@ -9,8 +9,9 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag to build and attach to (e.g. v0.1.0)"
-        required: true
+        description: "Release tag to build and attach to (e.g. v0.1.0). Leave empty for a test build."
+        required: false
+        default: ""
       ref:
         description: "Test build: build this branch or commit instead of the tag and keep the zip as a workflow artifact (the release is not changed)"
         required: false
@@ -47,6 +48,7 @@ jobs:
         shell: pwsh
         run: |
           $version = "$env:RELEASE_TAG".TrimStart('v')
+          if (-not $version) { $version = "test-$($env:GITHUB_SHA.Substring(0,8))" }
           $name = "Kinu-Tune-$version-Windows-x64"
           New-Item -ItemType Directory -Force -Path "$name/models", "$name/licenses" | Out-Null
           Copy-Item -Recurse "build/PitchNetPlugin_artefacts/Release/VST3/Kinu Tune.vst3" "$name/"
@@ -61,16 +63,16 @@ jobs:
           "ZIP_NAME=$name" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Attach to the release
-        if: ${{ inputs.ref == '' }}
+        if: ${{ inputs.tag != '' && inputs.ref == '' }}
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "$env:RELEASE_TAG" "$env:ZIP_NAME.zip" --repo "$env:GITHUB_REPOSITORY" --clobber
 
       - name: Keep the test build as a workflow artifact
-        if: ${{ inputs.ref != '' }}
+        if: ${{ inputs.tag == '' || inputs.ref != '' }}
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ env.ZIP_NAME }}-test
+          name: ${{ env.ZIP_NAME }}
           path: ${{ env.ZIP_NAME }}.zip
-          retention-days: 7
+          retention-days: 14
