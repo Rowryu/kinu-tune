@@ -106,6 +106,11 @@ GuidedPitchReport applyGuidedPitchCorrection(
         NotePitch::setCorrectionSource(note, sung[i].midiNote);
         NotePitch::applyCorrection(note, targets[i].correctedMidiNote);
 
+        // Incremental resynthesis renders the notes marked dirty rather
+        // than the whole take, so a correction that does not mark them is
+        // heard only after something else forces a full render.
+        note.markDirty();
+
         edit.newMidi = note.getMidiNote();
         edit.newCorrectionSource = note.getLastNonMacroMidiNote();
         if (edits != nullptr)
@@ -133,6 +138,7 @@ void revertGuidedPitchCorrection(Project& project,
             continue;
         NotePitch::restore(notes[static_cast<size_t>(edit.noteIndex)],
                            edit.previousMidi, edit.previousCorrectionSource);
+        notes[static_cast<size_t>(edit.noteIndex)].markDirty();
     }
 
     if (!edits.empty())
@@ -149,6 +155,7 @@ void reapplyGuidedPitchCorrection(Project& project,
             continue;
         NotePitch::restore(notes[static_cast<size_t>(edit.noteIndex)],
                            edit.newMidi, edit.newCorrectionSource);
+        notes[static_cast<size_t>(edit.noteIndex)].markDirty();
     }
 
     if (!edits.empty())

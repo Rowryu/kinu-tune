@@ -9,6 +9,7 @@
 #include "../Utils/Localization.h"
 #include "Components/StyledWidgets.h"
 #include "HarmonyPanel.h"
+#include "MidiGuidePanel.h"
 #include <array>
 #include <functional>
 #include <optional>
@@ -40,6 +41,7 @@ public:
     void refresh() { refreshFromProject(); }
 
     HarmonyPanel& getHarmonyPanel() { return harmonyPanel; }
+    MidiGuidePanel& getMidiGuidePanel() { return midiGuidePanel; }
 
     // Asked on every refresh; never cached (see HarmonyPanel).
     std::function<Project*()> getCurrentProject;
@@ -134,6 +136,7 @@ private:
     int shownModeId = 0;
 
     HarmonyPanel harmonyPanel; // draws its own card and title
+    MidiGuidePanel midiGuidePanel; // likewise
 
     LocalisationWatcher languageWatcher{[this] { refreshLocalisedText(); }};
 

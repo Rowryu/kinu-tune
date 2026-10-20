@@ -318,6 +318,9 @@ VariAudioInspector::VariAudioInspector()
     harmonyPanel.getCurrentProject = [this] { return getCurrentProject ? getCurrentProject() : nullptr; };
     content.addAndMakeVisible(harmonyPanel);
 
+    midiGuidePanel.getCurrentProject = [this] { return getCurrentProject ? getCurrentProject() : nullptr; };
+    content.addAndMakeVisible(midiGuidePanel);
+
     refreshLocalisedText();
     // Selection, snap state and values change from many places (canvas,
     // parameter panel, host); polling keeps the inspector honest.
@@ -522,7 +525,8 @@ void VariAudioInspector::paintContent(juce::Graphics& g)
 int VariAudioInspector::getContentHeight() const
 {
     return kPadY + kVariAudioCardHeight + kPadY + kEditorScaleCardHeight +
-           harmonyPanel.getPreferredHeight() + kPadY;
+           harmonyPanel.getPreferredHeight() +
+           midiGuidePanel.getPreferredHeight() + kPadY;
 }
 
 void VariAudioInspector::resized()
@@ -578,5 +582,6 @@ void VariAudioInspector::layoutContent(int width)
     area.setX(area.getX() - kPadX);
     area.setWidth(width);
     harmonyPanel.setBounds(area.removeFromTop(harmonyPanel.getPreferredHeight()));
+    midiGuidePanel.setBounds(area.removeFromTop(midiGuidePanel.getPreferredHeight()));
     content.repaint();
 }

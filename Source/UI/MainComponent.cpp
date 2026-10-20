@@ -6,6 +6,7 @@
 #include "../Audio/RealtimePitchProcessor.h"
 #include "../Audio/IO/MidiExporter.h"
 #include "../Models/ProjectSerializer.h"
+#include "../Undo/GuidedPitchAction.h"
 #include "../Utils/AppLogger.h"
 #include "../Utils/Constants.h"
 #include "../Utils/UI/Theme.h"
@@ -776,6 +777,42 @@ MainComponent::MainComponent(bool enableAudioDevice)
   harmonyPanel.onHarmonyRequested =
       [this](HarmonyUtils::Interval interval, bool up)
   { return pianoRoll.applyHarmonyInterval(interval, up); };
+
+  // MIDI guide pitch correction. The panel owns the guide and the settings;
+  // this closure owns the project, the undo record and the redraw, so the
+  // card needs to know nothing about either.
+  auto &midiGuidePanel = variAudioInspector.getMidiGuidePanel();
+  midiGuidePanel.getFramesPerSecond = []
+  { return static_cast<double>(SAMPLE_RATE) / static_cast<double>(HOP_SIZE); };
+  midiGuidePanel.onCorrectionRequested =
+      [this](const std::vector<correction::GuideNote> &guide,
+             const correction::PitchTargetParams &params)
+  {
+    correction::GuidedPitchReport report;
+    auto *project = getProject();
+    if (project == nullptr)
+      return report;
+
+    std::vector<correction::GuidedPitchEdit> edits;
+    report = correction::applyGuidedPitchCorrection(*project, guide, params, {},
+                                                    &edits);
+
+    if (!edits.empty() && undoManager)
+      undoManager->addAction(std::make_unique<GuidedPitchAction>(
+          project, edits, [this] { afterHistoryChange(true); }));
+
+    if (report.notesCorrected > 0)
+    {
+      pianoRoll.invalidateBasePitchCache();
+      pianoRoll.repaint();
+      pianoRollView.refreshOverview();
+      resynthesizeIncremental();
+      notifyProjectDataChanged();
+    }
+
+    return report;
+  };
+
   variAudioInspector.isProjectKeyScope = [this] { return isTrackViewMode(); };
   variAudioInspector.onEditorScaleChanged = [this]
   {
