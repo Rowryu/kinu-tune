@@ -617,18 +617,38 @@ void PitchNetAudioProcessorEditor::setupARAMode() {
   if (syncInitialARASelectionFromHost())
     return;
 
+  // Hosts are not required to have a usable playback region ready when an ARA
+  // editor opens, and are not required to announce the first selection either.
+  // Try now, and keep trying from the timer if this comes up empty.
+  araBootstrapPending = !tryAdoptAraRegion();
+#endif
+}
+
+#if JucePlugin_Enable_ARA
+bool PitchNetAudioProcessorEditor::tryAdoptAraRegion() {
+  auto *editorView = getARAEditorView();
+  if (!editorView)
+    return false;
+
+  auto *docController = editorView->getDocumentController();
+  if (!docController)
+    return false;
+
+  auto *pitchDocController = juce::ARADocumentControllerSpecialisation::
+      getSpecialisedDocumentController<PitchNetDocumentController>(
+          docController);
+  if (!pitchDocController)
+    return false;
+
   // The playback renderer contains the regions assigned to this plugin
   // instance. Use that set to select the correct track/region sequence rather
   // than guessing from the first source in the shared ARA document.
   if (auto *renderer = audioProcessor.getPlaybackRenderer()) {
     if (pitchDocController->processPlaybackRegions(
             renderer->getPlaybackRegions(), audioProcessor.getSampleRate())) {
-      // Hosts are not required to send a selection-change notification when
-      // an ARA editor first opens. Activate the region discovered from this
-      // instance's renderer immediately instead of relying on onNewSelection().
       audioProcessor.setActiveAraRegion(
           pitchDocController->getCurrentPlaybackRegion());
-      return;
+      return true;
     }
   }
 
@@ -638,10 +658,12 @@ void PitchNetAudioProcessorEditor::setupARAMode() {
           static_cast<juce::ARADocument *>(juceDocument))) {
     audioProcessor.setActiveAraRegion(
         pitchDocController->getCurrentPlaybackRegion());
-    return;
+    return true;
   }
-#endif
+
+  return false;
 }
+#endif
 
 void PitchNetAudioProcessorEditor::timerCallback() {
   syncAAXARAPlayheadStateFromHost();
@@ -653,6 +675,19 @@ void PitchNetAudioProcessorEditor::timerCallback() {
     const int interval = juce::jmax(1, getTimerInterval());
     regionListRefreshCountdown =
         juce::jmax(1, (1000 / kRegionListRefreshHz) / interval);
+
+    // Fender Studio Pro (Studio One) opens the editor before a usable
+    // playback region exists and sends no initial selection callback, so the
+    // bootstrap in setupARAMode finds nothing and nothing else ever retries -
+    // the editor stays empty until the user clicks the region by hand. Retry
+    // here until a region is adopted.
+    //
+    // This only runs while nothing is loaded, so a host that behaves
+    // correctly performs exactly one extra check and then never again;
+    // onNewSelection clears the flag on the hosts that do announce selection.
+    if (araBootstrapPending && tryAdoptAraRegion())
+      araBootstrapPending = false;
+
     refreshAraRegionList();
   }
 #endif
@@ -1354,6 +1389,10 @@ void PitchNetAudioProcessorEditor::activateAraRegion(
 
 void PitchNetAudioProcessorEditor::onNewSelection(
     const juce::ARAViewSelection &viewSelection) {
+  // The host has taken over announcing which region to edit, so the
+  // bootstrap retry has nothing left to do.
+  araBootstrapPending = false;
+
   // Switch the canvas to whichever region the user selected in the host. Each
   // region/track carries its own persistent Project, so this swaps what is
   // shown and edited without disturbing the others. Prefer an explicitly

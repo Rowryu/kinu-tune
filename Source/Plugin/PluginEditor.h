@@ -57,6 +57,10 @@ private:
     // Rebuild the Regions card's region list and push it to the UI, but only
     // when it actually differs from what the card already shows.
     void refreshAraRegionList();
+    // Adopt the playback region this instance should edit. Returns false when
+    // the host has not made one available yet, which is not an error: see the
+    // retry in timerCallback.
+    bool tryAdoptAraRegion();
     // Switch the canvas to a region the user picked in the Regions card, or
     // clicked on the canvas. A canvas click leaves the view where it is
     // (focusView = false): the region is already on screen.
@@ -117,6 +121,10 @@ private:
     // drawn on the canvas. Never contains the active track.
     std::set<juce::String> pinnedTrackKeys;
     int regionListRefreshCountdown = 0;
+    // Set while the editor has adopted no region yet, so the timer keeps
+    // retrying for hosts that open the editor before a region exists and
+    // never announce the first selection.
+    bool araBootstrapPending = false;
 #endif
     bool lunaSoftwareRendererApplied = false;
 
