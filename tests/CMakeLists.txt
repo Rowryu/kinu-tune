@@ -27,6 +27,7 @@ set(PITCHNET_TEST_SOURCES
     AraRegionSliceTests.cpp
     FormantShiftTests.cpp
     GuidedPitchCorrectionTests.cpp
+    GuideSourceTests.cpp
     MidiFileReaderTests.cpp
     MidiGuideCorrectionTests.cpp
     TimingMapTests.cpp
