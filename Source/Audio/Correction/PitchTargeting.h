@@ -1,0 +1,60 @@
+// Kinu Tune - Copyright (C) 2026 Keinoaza
+// Part of Kinu Tune, a modified version of PitchNet. Licensed under the GNU
+// Affero General Public License, version 3. See LICENSE and MODIFICATIONS.md.
+#pragma once
+
+#include "MidiGuideTypes.h"
+
+#include <vector>
+
+namespace correction
+{
+
+/// User-facing correction controls. Defaults favour a natural vocal over a
+/// precise one, which is what the plug-in is for.
+struct PitchTargetParams
+{
+    /// 0 = leave the pitch alone, 1 = move the note centre all the way to the
+    /// guide. Partial values keep some of the singer's own intonation.
+    float correctionStrength = 0.75f;
+
+    /// Hard ceiling on how far one note may move, in semitones. A note that
+    /// would need more than this is almost always a wrong match or a wrong
+    /// note, and dragging it the whole way sounds worse than leaving it.
+    float maxShiftSemitones = 2.0f;
+
+    /// Matches below this confidence are left uncorrected entirely.
+    float minConfidence = 0.25f;
+};
+
+/// What the correction decided for one sung note.
+struct PitchTargetResult
+{
+    int sungIndex = -1;
+    /// The note centre to write back into Note::midiNote. Equal to the
+    /// original when nothing was applied.
+    float correctedMidiNote = 60.0f;
+    /// Signed semitones actually applied, after strength, confidence and the
+    /// ceiling. Zero means the note was left alone.
+    float appliedShiftSemitones = 0.0f;
+    bool corrected = false;
+};
+
+/**
+ * Decide the corrected note centre for every sung note.
+ *
+ * Only the note centre moves. deltaPitch - vibrato, scoops, falls, portamento
+ * and the rest of the singer's phrasing - rides on top of it untouched, so a
+ * corrected note keeps its shape and only changes where it sits.
+ *
+ * Correction is scaled by both the user's strength and the match confidence,
+ * then clamped. A doubtful match therefore degrades to a gentle nudge rather
+ * than a confident move to the wrong pitch.
+ */
+std::vector<PitchTargetResult> computePitchTargets(
+    const std::vector<SungNote>& sung,
+    const std::vector<GuideNote>& guide,
+    const std::vector<NoteMatch>& matches,
+    const PitchTargetParams& params = {});
+
+} // namespace correction
