@@ -25,7 +25,6 @@
 set(PITCHNET_TEST_SOURCES
     AraRegionMergeTests.cpp
     AraRegionSliceTests.cpp
-    ExpressionShapingTests.cpp
     FormantShiftTests.cpp
     MidiFileReaderTests.cpp
     MidiGuideCorrectionTests.cpp

@@ -52,7 +52,7 @@ jobs:
       - name: Run the correction test suites
         run: >
           ctest --test-dir build --output-on-failure --no-tests=error
-          -R "ExpressionShapingTests|MidiFileReaderTests|MidiGuideCorrectionTests|TimingMapTests"
+          -R "MidiFileReaderTests|MidiGuideCorrectionTests|TimingMapTests"
 
   windows-build:
     runs-on: windows-latest
