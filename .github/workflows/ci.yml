@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -40,8 +40,57 @@ jobs:
       - name: Build
         run: cmake --build build --config Release --parallel 3
 
+      # --no-tests=error because ctest exits 0 when it finds nothing to run, so
+      # without it a test that failed to register reads as a green run - the
+      # same vacuous pass that tests/CMakeLists.txt warns about for assert().
+      #
+      # The output is kept so the run can be read somewhere that cannot reach
+      # the blob storage GitHub serves job logs and artifacts from. The step
+      # records its own result and the job fails at the end instead, so the
+      # log is published either way.
       - name: Run the unit tests
-        run: ctest --test-dir build --output-on-failure
+        id: tests
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          ctest --test-dir build --output-on-failure --no-tests=error 2>&1 | tee ctest.log
+
+      # The correction suites are named explicitly so that losing one of them
+      # from the build is a failure rather than a smaller test run nobody
+      # notices.
+      - name: Run the correction test suites
+        id: correction_tests
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          ctest --test-dir build --output-on-failure --no-tests=error \
+            -R "GuidedPitchCorrectionTests|MidiFileReaderTests|MidiGuideCorrectionTests|TimingMapTests" \
+            2>&1 | tee ctest-correction.log
+
+      - name: Publish the test output to the ci-logs branch
+        if: always()
+        continue-on-error: true
+        run: |
+          set -eu
+          work=/tmp/logrepo
+          dest="$work/runs/${{ github.run_id }}"
+          rm -rf "$work"
+          mkdir -p "$dest"
+          cp ctest*.log "$dest/" 2>/dev/null || true
+          cd "$work"
+          git init -q -b ci-logs
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "CI test output for run ${{ github.run_id }}"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" ci-logs
+
+      - name: Fail if any test failed
+        if: steps.tests.outcome != 'success' || steps.correction_tests.outcome != 'success'
+        run: |
+          echo "unit tests: ${{ steps.tests.outcome }}"
+          echo "correction suites: ${{ steps.correction_tests.outcome }}"
+          exit 1
 
   windows-build:
     runs-on: windows-latest

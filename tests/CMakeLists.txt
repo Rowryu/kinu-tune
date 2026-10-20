@@ -12,10 +12,24 @@
 #   cmake --build build
 #   ctest --test-dir build --output-on-failure
 
+# The correction tests below are written against plain C++ types and need
+# neither JUCE nor the Project model, so they also build and run outside CMake
+# with a direct compiler call - useful while developing somewhere the plug-in
+# itself cannot be built. They link pitchnet_core anyway because the sources
+# under Source/Audio/Correction are already part of it, and compiling them a
+# second time into the test would duplicate the symbols.
+#
+# They report failures through their own check helper and return a non-zero
+# exit code rather than calling assert(), so the NDEBUG caveat below does not
+# apply to them.
 set(PITCHNET_TEST_SOURCES
     AraRegionMergeTests.cpp
     AraRegionSliceTests.cpp
     FormantShiftTests.cpp
+    GuidedPitchCorrectionTests.cpp
+    MidiFileReaderTests.cpp
+    MidiGuideCorrectionTests.cpp
+    TimingMapTests.cpp
     HarmonyIntervalTests.cpp
     HostSyncTempoTests.cpp
     NoteGainCurveTests.cpp
