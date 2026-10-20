@@ -7,7 +7,6 @@
 #include "../../Utils/Constants.h"
 #include "../../Utils/NotePitch.h"
 #include "../../Utils/PitchCurveProcessor.h"
-#include "../../Utils/ScaleUtils.h"
 
 #include <algorithm>
 #include <cmath>
@@ -17,24 +16,30 @@ namespace correction
 namespace
 {
 
-/// The pitch a correction should be measured from.
+/// The pitch a correction should be measured from: the note as sung.
 ///
-/// Correct Pitch keeps a separate reference - the pitch as sung - so that
+/// Correct Pitch keeps this separate from the current pitch so that
 /// correcting twice does not compound, and so the inspector slider can show
-/// the share of the sung deviation that has been removed. A note whose
-/// current pitch is not a 0-100% correction of its stored reference (an older
-/// project, or a pitch that was drawn in) starts over from where it is, which
-/// is what the editor's own Correct Pitch does on the first drag.
-float correctionSourceFor(const Project& project, const Note& note)
+/// the share of the sung deviation that has been removed.
+///
+/// PitchToolController additionally asks ScaleUtils::correctionShare whether
+/// the current pitch is a 0-100% correction of the reference, and starts over
+/// from the current pitch when it is not. That check does NOT transfer here,
+/// and using it was a bug: correctionShare measures against the nearest note
+/// of the EDITOR SCALE, while guided correction aims at the guide note
+/// instead. For a note sung close to a scale pitch the scale deviation is
+/// about zero, so the check reported "not a valid correction" for a pitch
+/// this function had itself just corrected, discarded the sung reference, and
+/// made a second run correct the already-corrected pitch again.
+///
+/// No check is needed. Note's constructor sets the reference to the sung
+/// pitch, Note::setMidiNote keeps the two together for edits and pitch
+/// drawing, and NotePitch::applyEdit carries the reference through a move.
+/// Only setMidiNoteFromPitchCorrection moves the pitch without the reference -
+/// which is exactly the correction this wants to measure from.
+float correctionSourceFor(const Note& note)
 {
-    const int referenceHz = project.getPitchReferenceHz();
-    float source = note.getLastNonMacroMidiNote();
-
-    if (!ScaleUtils::correctionShare(project, source, note.getMidiNote(),
-                                     referenceHz))
-        source = note.getMidiNote();
-
-    return source;
+    return note.getLastNonMacroMidiNote();
 }
 
 } // namespace
@@ -67,7 +72,7 @@ GuidedPitchReport applyGuidedPitchCorrection(
         // Match on the sung pitch, not the current one: after one run the
         // current pitch already sits near the guide, and matching on it would
         // make a wrong pairing look right the second time round.
-        s.midiNote = correctionSourceFor(project, note);
+        s.midiNote = correctionSourceFor(note);
 
         sung.push_back(s);
         noteIndices.push_back(i);

@@ -58,6 +58,14 @@ int main()
 
     // --- the reference stays, so a second run does not compound ----------
     {
+        // 59.0 is deliberately a whole semitone - a note of the default
+        // editor scale. An earlier version borrowed
+        // ScaleUtils::correctionShare to decide whether the stored reference
+        // was still valid, but that measures deviation from the nearest SCALE
+        // pitch, which is zero here. It therefore called a pitch it had just
+        // corrected invalid, threw the sung reference away, and corrected the
+        // corrected pitch again on the next run. A sung pitch off the scale
+        // would have hidden the bug.
         Project project;
         project.addNote(Note(0, 100, 59.0f));
         const std::vector<GuideNote> g = {guide(0, 100, 60.0f)};
