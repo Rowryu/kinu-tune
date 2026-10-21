@@ -661,11 +661,24 @@ static correction::RegionPlacement placementForRegion(
   return placement;
 }
 
+// The playback region the canvas is currently editing. The processor keeps
+// the selector rather than the pointer, because the host may destroy and
+// rebuild regions; resolving it against the live list avoids a stale pointer.
+juce::ARAPlaybackRegion *PitchNetAudioProcessorEditor::activeAraRegion() {
+  const auto selector = audioProcessor.getActiveAraRegionSelector();
+  if (selector.isEmpty())
+    return nullptr;
+  for (auto *region : collectAraPlaybackRegions())
+    if (region != nullptr && pitchnetRegionSelector(*region) == selector)
+      return region;
+  return nullptr;
+}
+
 std::vector<MainViewTrackEntry>
 PitchNetAudioProcessorEditor::listGuideTrackCandidates() {
   std::vector<MainViewTrackEntry> candidates;
 
-  auto *active = audioProcessor.getActiveAraRegion();
+  auto *active = activeAraRegion();
   const auto activeTrack =
       active != nullptr ? araTrackKey(active->getRegionSequence()) : juce::String();
 
@@ -714,7 +727,7 @@ std::vector<correction::GuideNote>
 PitchNetAudioProcessorEditor::buildGuideFromTrack(const juce::String &trackKey) {
   std::vector<correction::GuideNote> result;
 
-  auto *active = audioProcessor.getActiveAraRegion();
+  auto *active = activeAraRegion();
   if (active == nullptr || trackKey.isEmpty())
     return result;
 
