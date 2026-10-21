@@ -30,7 +30,8 @@ constexpr int kLabelledRow = kLabelHeight + kRowHeight;
 constexpr int kPreferredHeight =
     kCardPadY * 2 + kInnerPadY * 2 + kSectionLabelHeight + kRowGap +
     kButtonHeight + kRowGap + kLabelHeight + kRowGap +
-    kLabelledRow + kRowGap +            // track
+    kLabelledRow + kRowGap +            // guide track
+    kLabelledRow + kRowGap +            // midi file track
     (kLabelledRow + kRowGap) * 3 +      // project bpm, midi bpm, offset
     (kLabelledRow + kRowGap) * 2 +      // strength, max shift
     kButtonHeight + kRowGap + kStatusRowHeight;
@@ -55,6 +56,29 @@ MidiGuidePanel::MidiGuidePanel()
     sectionLabel.setFont(AppFont::getBoldFont(16.0f));
     sectionLabel.setColour(juce::Label::textColourId, juce::Colour(0xFF9B9B9Bu));
     addAndMakeVisible(sectionLabel);
+
+    styleCaption(guideTrackLabel);
+    addAndMakeVisible(guideTrackLabel);
+    guideTrackBox.onChange = [this]
+    {
+        const int id = guideTrackBox.getSelectedId();
+        if (id <= 1)
+        {
+            guideTrackKey = {};
+            trackGuide.clear();
+            if (source == Source::Track)
+                source = guide.isLoaded() ? Source::MidiFile : Source::None;
+            applyPlacement();
+            return;
+        }
+
+        const size_t index = static_cast<size_t>(id - 2);
+        if (index >= guideTrackOptions.size())
+            return;
+        guideTrackKey = guideTrackOptions[index].key;
+        adoptTrackGuide();
+    };
+    addAndMakeVisible(guideTrackBox);
 
     styleButton(loadButton);
     loadButton.onClick = [this] { chooseFile(); };
@@ -170,6 +194,7 @@ double MidiGuidePanel::framesPerSecond() const
 void MidiGuidePanel::refreshLocalisedText()
 {
     sectionLabel.setText(TR("midiguide.title"), juce::dontSendNotification);
+    guideTrackLabel.setText(TR("midiguide.guide_track"), juce::dontSendNotification);
     loadButton.setButtonText(TR("midiguide.load"));
     trackLabel.setText(TR("midiguide.track"), juce::dontSendNotification);
     projectBpmLabel.setText(TR("midiguide.project_bpm"), juce::dontSendNotification);
@@ -183,6 +208,74 @@ void MidiGuidePanel::refreshLocalisedText()
         fileLabel.setText(TR("midiguide.no_file"), juce::dontSendNotification);
 
     refreshTrackMenu();
+    refreshGuideTrackMenu();
+}
+
+void MidiGuidePanel::refreshGuideSources()
+{
+    refreshGuideTrackMenu();
+    refreshEnablement();
+}
+
+void MidiGuidePanel::refreshGuideTrackMenu()
+{
+    guideTrackOptions = listGuideTracks ? listGuideTracks()
+                                        : std::vector<MainViewTrackEntry>{};
+
+    const auto previousKey = guideTrackKey;
+    guideTrackBox.clear(juce::dontSendNotification);
+    guideTrackBox.addItem(TR("midiguide.guide_track_none"), 1);
+
+    int wanted = 1;
+    for (size_t i = 0; i < guideTrackOptions.size(); ++i)
+    {
+        const auto& track = guideTrackOptions[i];
+        const auto name = track.name.isNotEmpty()
+                              ? track.name
+                              : TR("midiguide.track_n") + " " + juce::String(i + 1);
+        guideTrackBox.addItem(name, static_cast<int>(i) + 2);
+        if (track.key == previousKey)
+            wanted = static_cast<int>(i) + 2;
+    }
+
+    // A chosen track that is gone (region closed, plug-in removed) must not
+    // leave a stale guide behind.
+    if (wanted == 1 && previousKey.isNotEmpty())
+    {
+        guideTrackKey = {};
+        trackGuide.clear();
+        if (source == Source::Track)
+            source = guide.isLoaded() ? Source::MidiFile : Source::None;
+    }
+
+    guideTrackBox.setSelectedId(wanted, juce::dontSendNotification);
+    guideTrackLabel.setVisible(!guideTrackOptions.empty());
+    guideTrackBox.setVisible(!guideTrackOptions.empty());
+}
+
+void MidiGuidePanel::adoptTrackGuide()
+{
+    trackGuide.clear();
+    if (buildGuideFromTrack && guideTrackKey.isNotEmpty())
+        trackGuide = buildGuideFromTrack(guideTrackKey);
+
+    source = trackGuide.empty() ? Source::None : Source::Track;
+    refreshEnablement();
+
+    if (trackGuide.empty())
+    {
+        showStatus(TR("midiguide.status_track_empty"), true);
+        return;
+    }
+
+    const double fps = framesPerSecond();
+    showStatus(TR("midiguide.status_loaded")
+                   .replace("{notes}", juce::String(trackGuide.size()))
+                   .replace("{from}",
+                            juce::String(trackGuide.front().startFrame / fps, 2))
+                   .replace("{to}",
+                            juce::String(trackGuide.back().endFrame / fps, 2)),
+               false);
 }
 
 void MidiGuidePanel::timerCallback()
@@ -193,19 +286,39 @@ void MidiGuidePanel::timerCallback()
         hadProject = hasProject;
         refreshEnablement();
     }
+
+    // Tracks appear as the host creates regions and the analysis finishes, so
+    // the list is polled rather than pushed. Rebuild only when the set
+    // actually changed, or the menu would close itself under the user.
+    if (listGuideTracks)
+    {
+        const auto tracks = listGuideTracks();
+        bool changed = tracks.size() != guideTrackOptions.size();
+        for (size_t i = 0; !changed && i < tracks.size(); ++i)
+            changed = tracks[i].key != guideTrackOptions[i].key ||
+                      tracks[i].name != guideTrackOptions[i].name;
+        if (changed && !guideTrackBox.isPopupActive())
+            refreshGuideTrackMenu();
+    }
 }
 
 void MidiGuidePanel::refreshEnablement()
 {
     const bool loaded = guide.isLoaded();
-    const bool ready = loaded && currentProject() != nullptr && !guide.notes.empty();
+    const bool usingFile = source == Source::MidiFile;
+    const bool haveGuide = !activeGuideNotes().empty();
+    const bool ready = haveGuide && currentProject() != nullptr;
 
-    trackBox.setEnabled(loaded && guide.midi.tracksWithNotes.size() > 1);
-    projectBpmSlider.setEnabled(loaded);
-    midiBpmSlider.setEnabled(loaded);
-    offsetSlider.setEnabled(loaded);
-    strengthSlider.setEnabled(loaded);
-    maxShiftSlider.setEnabled(loaded);
+    // Tempo and offset place a FILE against the audio. A guide read from
+    // another track is already on the host timeline, so those controls would
+    // do nothing and are disabled rather than left looking live.
+    trackBox.setEnabled(usingFile && guide.midi.tracksWithNotes.size() > 1);
+    projectBpmSlider.setEnabled(usingFile && loaded);
+    midiBpmSlider.setEnabled(usingFile && loaded);
+    offsetSlider.setEnabled(usingFile && loaded);
+
+    strengthSlider.setEnabled(haveGuide);
+    maxShiftSlider.setEnabled(haveGuide);
     applyButton.setEnabled(ready);
 }
 
@@ -286,6 +399,7 @@ void MidiGuidePanel::chooseFile()
             safeThis->fileLabel.setText(
                 juce::String::fromUTF8(safeThis->guide.fileName.c_str()),
                 juce::dontSendNotification);
+            safeThis->source = Source::MidiFile;
             safeThis->refreshTrackMenu();
             safeThis->applyPlacement();
         });
@@ -293,6 +407,12 @@ void MidiGuidePanel::chooseFile()
 
 void MidiGuidePanel::applyPlacement()
 {
+    if (source == Source::Track)
+    {
+        adoptTrackGuide();
+        return;
+    }
+
     if (!guide.isLoaded())
     {
         refreshEnablement();
@@ -336,14 +456,14 @@ void MidiGuidePanel::applyPlacement()
 
 void MidiGuidePanel::runCorrection()
 {
-    if (!onCorrectionRequested || guide.notes.empty())
+    if (!onCorrectionRequested || activeGuideNotes().empty())
         return;
 
     correction::PitchTargetParams params;
     params.correctionStrength = static_cast<float>(strengthSlider.getValue());
     params.maxShiftSemitones = static_cast<float>(maxShiftSlider.getValue());
 
-    const auto report = onCorrectionRequested(guide.notes, params);
+    const auto report = onCorrectionRequested(activeGuideNotes(), params);
 
     if (report.notesConsidered == 0)
     {
@@ -388,6 +508,13 @@ void MidiGuidePanel::resized()
 
     sectionLabel.setBounds(bounds.removeFromTop(kSectionLabelHeight));
     bounds.removeFromTop(kRowGap);
+
+    if (guideTrackBox.isVisible())
+    {
+        guideTrackLabel.setBounds(bounds.removeFromTop(kLabelHeight));
+        guideTrackBox.setBounds(bounds.removeFromTop(kRowHeight));
+        bounds.removeFromTop(kRowGap);
+    }
 
     loadButton.setBounds(bounds.removeFromTop(kButtonHeight));
     bounds.removeFromTop(kRowGap);

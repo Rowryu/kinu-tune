@@ -61,6 +61,11 @@ private:
     // the host has not made one available yet, which is not an error: see the
     // retry in timerCallback.
     bool tryAdoptAraRegion();
+    // Tracks that could act as a pitch guide, and the chosen one's notes
+    // converted to the active region's frame grid.
+    std::vector<MainViewTrackEntry> listGuideTrackCandidates();
+    std::vector<correction::GuideNote> buildGuideFromTrack(
+        const juce::String &trackKey);
     // Switch the canvas to a region the user picked in the Regions card, or
     // clicked on the canvas. A canvas click leaves the view where it is
     // (focusView = false): the region is already on screen.

@@ -30,6 +30,7 @@ set(PITCHNET_TEST_SOURCES
     GuideSourceTests.cpp
     MidiFileReaderTests.cpp
     MidiGuideCorrectionTests.cpp
+    RegionMappingTests.cpp
     TimingMapTests.cpp
     HarmonyIntervalTests.cpp
     HostSyncTempoTests.cpp

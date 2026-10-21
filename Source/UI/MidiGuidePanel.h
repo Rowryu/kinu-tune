@@ -10,6 +10,7 @@
 #include "../Models/Project.h"
 #include "../Utils/Localization.h"
 #include "Components/StyledWidgets.h"
+#include "IMainView.h"
 #include "Workspace/PanelContent.h"
 
 #include <functional>
@@ -55,12 +56,30 @@ public:
     /// Frames per second of the analysis grid, for placing the guide.
     std::function<double()> getFramesPerSecond;
 
+    /// Other tracks that could serve as the guide. In ARA every instance of
+    /// the plug-in shares one document, so a track with the plug-in on it has
+    /// been analysed and its notes are readable from here - which is how
+    /// Melodyne's multi-track editing works, and what makes a sung guide
+    /// possible. Empty outside ARA, and the card then offers only a file.
+    std::function<std::vector<MainViewTrackEntry>()> listGuideTracks;
+
+    /// The chosen track's notes, already on THIS region's frame grid. The
+    /// plug-in layer does the conversion because it knows both placements.
+    std::function<std::vector<correction::GuideNote>(const juce::String&)>
+        buildGuideFromTrack;
+
+    /// Re-read the track list. Called when the provider is installed and
+    /// whenever the set of tracks may have changed.
+    void refreshGuideSources();
+
 private:
     void timerCallback() override;
     void chooseFile();
     void applyPlacement();
     void runCorrection();
     void refreshTrackMenu();
+    void refreshGuideTrackMenu();
+    void adoptTrackGuide();
     void refreshEnablement();
     void showStatus(const juce::String& text, bool isWarning);
 
@@ -71,10 +90,27 @@ private:
 
     double framesPerSecond() const;
 
-    correction::LoadedGuide guide;
+    // Where the guide comes from. A card can hold a loaded file and a chosen
+    // track at once; this says which one Apply will use, so switching back
+    // and forth does not make the user set the other up again.
+    enum class Source { None, MidiFile, Track };
+    Source source = Source::None;
+
+    correction::LoadedGuide guide;          ///< the MIDI file, when loaded
+    std::vector<correction::GuideNote> trackGuide; ///< the track, when chosen
+    juce::String guideTrackKey;
+    std::vector<MainViewTrackEntry> guideTrackOptions;
     std::unique_ptr<juce::FileChooser> fileChooser;
 
+    /// The notes Apply will correct against, whichever source is active.
+    const std::vector<correction::GuideNote>& activeGuideNotes() const
+    {
+        return source == Source::Track ? trackGuide : guide.notes;
+    }
+
     juce::Label sectionLabel;
+    juce::Label guideTrackLabel;
+    juce::ComboBox guideTrackBox;
     juce::TextButton loadButton;
     juce::Label fileLabel;
 

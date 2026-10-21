@@ -329,5 +329,8 @@
   "midiguide.status_no_notes": "This track has no notes",
   "midiguide.status_analyse_first": "Analyse the audio first",
   "midiguide.status_corrected": "Corrected {corrected} of {matched} matched notes ({total} total)",
-  "midiguide.load_unreadable": "the file could not be read"
+  "midiguide.load_unreadable": "the file could not be read",
+  "midiguide.guide_track": "Guide track",
+  "midiguide.guide_track_none": "None",
+  "midiguide.status_track_empty": "That track has no analysed notes"
 }

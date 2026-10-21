@@ -1,6 +1,7 @@
 #include "PluginEditor.h"
 #include "HostCompatibility.h"
 #include "../Models/Project.h"
+#include "../Audio/Correction/RegionMapping.h"
 #include "../Utils/AppLogger.h"
 #include "../Utils/Constants.h"
 #include "../Undo/ContextUndoAction.h"
@@ -331,6 +332,14 @@ void PitchNetAudioProcessorEditor::setupARAMode() {
   // region (per-region Projects).
   editorView->addListener(this);
 
+  // A guide can come from another track that has the plug-in on it, which is
+  // only possible under ARA: every instance shares one document.
+  mainView->setGuideTrackProvider(
+      [this] { return listGuideTrackCandidates(); },
+      [this](const juce::String &trackKey) {
+        return buildGuideFromTrack(trackKey);
+      });
+
   auto safeEditorForHistory = juce::Component::SafePointer<PitchNetAudioProcessorEditor>(this);
   audioProcessor.onAraUndoManagerRequested = [safeEditorForHistory](const juce::String& key) -> PitchUndoManager* {
     if (!safeEditorForHistory) return nullptr;
@@ -625,6 +634,141 @@ void PitchNetAudioProcessorEditor::setupARAMode() {
 }
 
 #if JucePlugin_Enable_ARA
+// Where a playback region sits and on what grid its notes were analysed.
+// A project is stored in its modification's own time, so this is what lets
+// one track's notes be read on another's grid.
+static correction::RegionPlacement placementForRegion(
+    juce::ARAPlaybackRegion *region, const Project &project) {
+  correction::RegionPlacement placement;
+  if (region == nullptr)
+    return placement;
+
+  placement.startInPlaybackSeconds = region->getStartInPlaybackTime();
+  placement.durationSeconds =
+      std::max(0.0, region->getEndInPlaybackTime() - region->getStartInPlaybackTime());
+
+  if (auto *modification = region->getAudioModification())
+    if (auto *source = modification->getAudioSource())
+      if (source->getSampleRate() > 0.0)
+        placement.startInModificationSeconds =
+            static_cast<double>(region->getStartInAudioModificationSamples()) /
+            source->getSampleRate();
+
+  placement.sampleRate = project.getAudioData().sampleRate > 0
+                             ? static_cast<double>(project.getAudioData().sampleRate)
+                             : static_cast<double>(SAMPLE_RATE);
+  placement.hopSize = HOP_SIZE;
+  return placement;
+}
+
+std::vector<MainViewTrackEntry>
+PitchNetAudioProcessorEditor::listGuideTrackCandidates() {
+  std::vector<MainViewTrackEntry> candidates;
+
+  auto *active = audioProcessor.getActiveAraRegion();
+  const auto activeTrack =
+      active != nullptr ? araTrackKey(active->getRegionSequence()) : juce::String();
+
+  // One entry per track, not per region: the card offers a guide track, and
+  // which of its regions overlap this one is this code's problem, not the
+  // user's.
+  std::set<juce::String> seen;
+  for (auto *region : collectAraPlaybackRegions()) {
+    if (region == nullptr)
+      continue;
+    auto *sequence = region->getRegionSequence();
+    const auto key = araTrackKey(sequence);
+    if (key.isEmpty() || key == activeTrack || seen.count(key) > 0)
+      continue;
+
+    // Only offer a track whose notes exist: an unanalysed one would be
+    // chosen and then silently guide nothing.
+    std::uint64_t revision = 0;
+    bool fromCanvas = false;
+    const Project *project = audioProcessor.getAraProjectForPreview(
+        region->getAudioModification<PitchNetAudioModification>(), revision,
+        fromCanvas);
+    if (project == nullptr || project->getNotes().empty())
+      continue;
+
+    juce::String name;
+    if (sequence != nullptr)
+      if (const char *sequenceName = sequence->getName())
+        name = juce::String::fromUTF8(sequenceName).trim();
+    if (name.isEmpty())
+      name = "Track " + juce::String(static_cast<int>(candidates.size()) + 1);
+
+    bool hasHostColour = false;
+    const auto colour = sequence != nullptr
+                            ? araTrackColour(*sequence, hasHostColour)
+                            : juce::Colour(kDefaultTrackColour);
+
+    seen.insert(key);
+    candidates.push_back({key, name, colour, hasHostColour, false});
+  }
+
+  return candidates;
+}
+
+std::vector<correction::GuideNote>
+PitchNetAudioProcessorEditor::buildGuideFromTrack(const juce::String &trackKey) {
+  std::vector<correction::GuideNote> result;
+
+  auto *active = audioProcessor.getActiveAraRegion();
+  if (active == nullptr || trackKey.isEmpty())
+    return result;
+
+  std::uint64_t activeRevision = 0;
+  bool activeFromCanvas = false;
+  const Project *activeProject = audioProcessor.getAraProjectForPreview(
+      active->getAudioModification<PitchNetAudioModification>(), activeRevision,
+      activeFromCanvas);
+  if (activeProject == nullptr)
+    return result;
+
+  const auto to = placementForRegion(active, *activeProject);
+
+  // A guide track can hold several regions; take them all and let the
+  // mapping drop whatever does not overlap.
+  for (auto *region : collectAraPlaybackRegions()) {
+    if (region == nullptr || araTrackKey(region->getRegionSequence()) != trackKey)
+      continue;
+
+    std::uint64_t revision = 0;
+    bool fromCanvas = false;
+    const Project *guideProject = audioProcessor.getAraProjectForPreview(
+        region->getAudioModification<PitchNetAudioModification>(), revision,
+        fromCanvas);
+    if (guideProject == nullptr)
+      continue;
+
+    std::vector<correction::GuideNote> notes;
+    notes.reserve(guideProject->getNotes().size());
+    for (const auto &note : guideProject->getNotes()) {
+      if (note.isRest())
+        continue;
+      correction::GuideNote g;
+      g.startFrame = note.getStartFrame();
+      g.endFrame = note.getEndFrame();
+      // The guide's own corrections count: a tuned guide should guide to
+      // where it now sits, not to where it was sung.
+      g.midiNote = note.getMidiNote();
+      notes.push_back(g);
+    }
+
+    const auto from = placementForRegion(region, *guideProject);
+    auto mapped = correction::guideNotesFromTrack(notes, from, to);
+    result.insert(result.end(), mapped.begin(), mapped.end());
+  }
+
+  std::sort(result.begin(), result.end(),
+            [](const correction::GuideNote &a, const correction::GuideNote &b) {
+              return a.startFrame < b.startFrame;
+            });
+
+  return result;
+}
+
 bool PitchNetAudioProcessorEditor::tryAdoptAraRegion() {
   auto *editorView = getARAEditorView();
   if (!editorView)

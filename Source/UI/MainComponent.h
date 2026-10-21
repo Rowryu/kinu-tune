@@ -19,6 +19,7 @@
 #include "PianoRollComponent.h"
 #include "PianoRollWorkspaceView.h"
 #include "VariAudioInspector.h"
+#include "../Audio/Correction/MidiGuideTypes.h"
 #include "SettingsOverlay.h"
 #include "ToolbarComponent.h"
 #include "Workspace/WorkspaceComponent.h"
@@ -206,6 +207,19 @@ public:
       std::function<void(const juce::String &)> callback) override {
     trackListPanel.onTrackSelected = std::move(callback);
   }
+  // MIDI-guide correction can take its guide from another track that has the
+  // plug-in on it: in ARA every instance shares one document, so a track
+  // analysed by another instance is readable from here. The plug-in layer
+  // supplies these because the ARA model graph lives there; in the standalone
+  // app they stay empty and the card offers only a MIDI file.
+  //
+  // The provider returns the guide already converted to THIS region's frame
+  // grid - the caller knows both placements, and the panel should not have to.
+  void setGuideTrackProvider(
+      std::function<std::vector<MainViewTrackEntry>()> listTracks,
+      std::function<std::vector<correction::GuideNote>(const juce::String &)>
+          buildGuide) override;
+
   void setOnTrackPinChanged(
       std::function<void(const juce::String &, bool)> callback) override {
     trackListPanel.onTrackPinChanged = std::move(callback);

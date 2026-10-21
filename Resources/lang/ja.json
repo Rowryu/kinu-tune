@@ -327,5 +327,8 @@
   "midiguide.status_no_notes": "このトラックには音がありません",
   "midiguide.status_analyse_first": "先に音声を解析してください",
   "midiguide.status_corrected": "{total} 音のうち {matched} 音が対応し、{corrected} 音を補正しました",
-  "midiguide.load_unreadable": "ファイルを開けません"
+  "midiguide.load_unreadable": "ファイルを開けません",
+  "midiguide.guide_track": "ガイドトラック",
+  "midiguide.guide_track_none": "使わない",
+  "midiguide.status_track_empty": "そのトラックに解析済みのノートがありません"
 }

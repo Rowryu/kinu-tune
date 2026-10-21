@@ -2958,6 +2958,17 @@ void MainComponent::onZoomChanged(float pixelsPerSecond)
   isSyncingZoom = false;
 }
 
+void MainComponent::setGuideTrackProvider(
+    std::function<std::vector<MainViewTrackEntry>()> listTracks,
+    std::function<std::vector<correction::GuideNote>(const juce::String &)>
+        buildGuide)
+{
+  auto &panel = variAudioInspector.getMidiGuidePanel();
+  panel.listGuideTracks = std::move(listTracks);
+  panel.buildGuideFromTrack = std::move(buildGuide);
+  panel.refreshGuideSources();
+}
+
 void MainComponent::notifyProjectDataChanged()
 {
   if (onProjectDataChanged)

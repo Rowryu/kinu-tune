@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../Audio/Correction/MidiGuideTypes.h"
 #include "../JuceHeader.h"
 #include "RegionPreview.h"
 #include <functional>
@@ -110,6 +111,14 @@ public:
   /** Called with a track key when the user clicks an inactive track. */
   virtual void setOnTrackSelected(
       std::function<void(const juce::String &)> callback) = 0;
+  /** Tracks that can serve as a pitch guide, and the chosen one's notes on
+      this region's frame grid. ARA only: every instance of the plug-in shares
+      one document, so a track another instance analysed is readable. Left
+      unset in the standalone app, where the guide can only be a file. */
+  virtual void setGuideTrackProvider(
+      std::function<std::vector<MainViewTrackEntry>()> listTracks,
+      std::function<std::vector<correction::GuideNote>(const juce::String &)>
+          buildGuide) = 0;
   /** Called with a track key and the new state when a track's pin is toggled. */
   virtual void setOnTrackPinChanged(
       std::function<void(const juce::String &, bool)> callback) = 0;
