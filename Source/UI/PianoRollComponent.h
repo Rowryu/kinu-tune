@@ -371,6 +371,9 @@ private:
   bool shouldSnapCycleToGrid() const;
   double snapTimeToTimelineGrid(double timeSeconds) const;
   bool isCanvasPoint(const juce::MouseEvent &e) const;
+  // Select every note drawn on the key under the pointer. `add` keeps the
+  // existing selection (shift-click).
+  void selectNotesOnKey(float midiUnderPointer, bool add);
   bool isModifierZoomDrag(const juce::MouseEvent &e) const;
   void applyModifierZoomDrag(const juce::MouseEvent &e);
   bool isModifierPanDrag(const juce::MouseEvent &e) const;

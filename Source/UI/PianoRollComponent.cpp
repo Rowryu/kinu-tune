@@ -1611,6 +1611,41 @@ double PianoRollComponent::snapTimeToTimelineGrid(double timeSeconds) const
   return std::max(getTimelineStart(), snapped);
 }
 
+void PianoRollComponent::selectNotesOnKey(float midiUnderPointer, bool add)
+{
+  if (!project)
+    return;
+
+  // Round to the key the pointer is over, then match notes by the key they
+  // are drawn on. A note sitting at 59.7 is drawn on 60 and is exactly the
+  // kind this is meant to collect, so the comparison rounds too rather than
+  // testing equality against an edited pitch.
+  const int key = static_cast<int>(std::lround(midiUnderPointer));
+
+  if (!add)
+    project->deselectAllNotes();
+
+  int matched = 0;
+  for (auto &note : project->getNotes())
+  {
+    if (note.isRest())
+      continue;
+    if (static_cast<int>(std::lround(note.getMidiNote())) != key)
+      continue;
+    note.setSelected(true);
+    ++matched;
+  }
+
+  if (matched == 0 && !add)
+    return; // nothing on that key; leave the cleared selection as it is
+
+  // Match what Select All does: refresh the smart-control handles and the
+  // preview button, then redraw.
+  updatePitchToolHandlesFromSelection();
+  updatePreviewButtonBounds();
+  repaint();
+}
+
 bool PianoRollComponent::isCanvasPoint(const juce::MouseEvent &e) const
 {
   return e.x >= pianoKeysWidth && e.y >= headerHeight &&
@@ -1908,6 +1943,18 @@ void PianoRollComponent::mouseDown(const juce::MouseEvent &e)
         repaint();
       }
     }
+    return;
+  }
+
+  // A click on the key strip selects every note sitting on that key, so a
+  // pitch that came out consistently flat can be fixed in one gesture
+  // instead of note by note. Shift adds to the selection.
+  if (e.mods.isLeftButtonDown() && !e.mods.isPopupMenu() &&
+      e.x < pianoKeysWidth && e.y >= headerHeight)
+  {
+    selectNotesOnKey(yToMidi(e.y - headerHeight + static_cast<float>(scrollY)),
+                     e.mods.isShiftDown());
+    swallowGestureUntilMouseUp = true;
     return;
   }
 
