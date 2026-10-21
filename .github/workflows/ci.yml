@@ -37,8 +37,16 @@ jobs:
 
       # The hosted macOS runner has 3 CPUs and 7 GB of memory; an unbounded
       # parallel build starts dozens of compilers at once.
+      #
+      # The output is kept and published like the test output: a build failure
+      # is served from blob storage some environments cannot reach, so without
+      # this a red build says only that it was red.
       - name: Build
-        run: cmake --build build --config Release --parallel 3
+        id: build
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          cmake --build build --config Release --parallel 3 2>&1 | tee build.log
 
       # --no-tests=error because ctest exits 0 when it finds nothing to run, so
       # without it a test that failed to register reads as a green run - the
@@ -50,6 +58,7 @@ jobs:
       # log is published either way.
       - name: Run the unit tests
         id: tests
+        if: steps.build.outcome == 'success'
         continue-on-error: true
         run: |
           set -o pipefail
@@ -60,6 +69,7 @@ jobs:
       # notices.
       - name: Run the correction test suites
         id: correction_tests
+        if: steps.build.outcome == 'success'
         continue-on-error: true
         run: |
           set -o pipefail
@@ -76,7 +86,7 @@ jobs:
           dest="$work/runs/${{ github.run_id }}"
           rm -rf "$work"
           mkdir -p "$dest"
-          cp ctest*.log "$dest/" 2>/dev/null || true
+          cp ctest*.log build.log "$dest/" 2>/dev/null || true
           cd "$work"
           git init -q -b ci-logs
           git config user.name "github-actions[bot]"
@@ -85,9 +95,10 @@ jobs:
           git commit -q -m "CI test output for run ${{ github.run_id }}"
           git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" ci-logs
 
-      - name: Fail if any test failed
-        if: steps.tests.outcome != 'success' || steps.correction_tests.outcome != 'success'
+      - name: Fail if the build or any test failed
+        if: steps.build.outcome != 'success' || steps.tests.outcome != 'success' || steps.correction_tests.outcome != 'success'
         run: |
+          echo "build: ${{ steps.build.outcome }}"
           echo "unit tests: ${{ steps.tests.outcome }}"
           echo "correction suites: ${{ steps.correction_tests.outcome }}"
           exit 1
