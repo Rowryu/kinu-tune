@@ -7,6 +7,7 @@
 #include "../Audio/IO/MidiExporter.h"
 #include "../Models/ProjectSerializer.h"
 #include "../Undo/GuidedPitchAction.h"
+#include "../Undo/TimingAction.h"
 #include "../Utils/AppLogger.h"
 #include "../Utils/Constants.h"
 #include "../Utils/UI/Theme.h"
@@ -809,6 +810,61 @@ MainComponent::MainComponent(bool enableAudioDevice)
       resynthesizeIncremental();
       notifyProjectDataChanged();
     }
+
+    return report;
+  };
+
+  // Automatic timing correction. The plan is applied through the editor's own
+  // timing path, the same one a manual timing drag uses, so the dirty
+  // bookkeeping, curve rebuild and undo are the already-working code.
+  auto &timingPanel = variAudioInspector.getTimingPanel();
+  timingPanel.getFramesPerSecond = []
+  { return static_cast<double>(SAMPLE_RATE) / static_cast<double>(HOP_SIZE); };
+  timingPanel.onCorrectionRequested =
+      [this](const std::vector<correction::GuideNote> &guide,
+             const correction::TimingCorrectionParams &params)
+  {
+    correction::TimingReport report;
+    auto *project = getProject();
+    if (project == nullptr)
+      return report;
+
+    std::vector<correction::TimingEdit> edits;
+    report = correction::planTimingCorrection(*project, guide, params, edits);
+    if (edits.empty())
+      return report;
+
+    std::vector<NoteTimingState> before;
+    std::vector<NoteTimingState> after;
+    before.reserve(edits.size());
+    after.reserve(edits.size());
+
+    auto &notes = project->getNotes();
+    for (const auto &edit : edits)
+    {
+      if (edit.noteIndex < 0 ||
+          edit.noteIndex >= static_cast<int>(notes.size()))
+        continue;
+      Note &note = notes[static_cast<size_t>(edit.noteIndex)];
+      before.push_back({&note, edit.previousStartFrame, edit.previousEndFrame});
+      after.push_back({&note, edit.newStartFrame, edit.newEndFrame});
+    }
+
+    if (after.empty())
+      return report;
+
+    applyNoteTimingStates(*project, after);
+    if (undoManager)
+      undoManager->addAction(std::make_unique<TimingAction>(
+          *project, std::move(before), std::move(after),
+          "Automatic Timing Correction"));
+
+    pianoRoll.dropTransientNotePointers();
+    pianoRoll.invalidateBasePitchCache();
+    pianoRoll.repaint();
+    pianoRollView.refreshOverview();
+    resynthesizeIncremental();
+    notifyProjectDataChanged();
 
     return report;
   };
@@ -2960,6 +3016,7 @@ void MainComponent::onZoomChanged(float pixelsPerSecond)
 
 void MainComponent::setHostBpmProvider(std::function<double()> getBpm)
 {
+  variAudioInspector.getTimingPanel().getHostBpm = getBpm;
   auto &panel = variAudioInspector.getMidiGuidePanel();
   panel.getHostBpm = std::move(getBpm);
   panel.refreshGuideSources();

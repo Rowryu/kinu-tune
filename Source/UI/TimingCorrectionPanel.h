@@ -1,0 +1,97 @@
+// Kinu Tune - Copyright (C) 2026 Keinoaza
+// Part of Kinu Tune, a modified version of PitchNet. Licensed under the GNU
+// Affero General Public License, version 3. See LICENSE and MODIFICATIONS.md.
+
+#pragma once
+
+#include "../Audio/Correction/TimingCorrection.h"
+#include "../JuceHeader.h"
+#include "../Models/Project.h"
+#include "../Utils/Localization.h"
+#include "Components/StyledWidgets.h"
+#include "Workspace/PanelContent.h"
+
+#include <functional>
+#include <vector>
+
+// Inspector card for automatic timing correction.
+//
+// Moves notes in time towards a guide or the host's grid. What gets lined up
+// is the note's energy peak rather than its first frame: a syllable opening
+// on a consonant starts well before the beat it lands on, so placing note
+// starts on a grid drags the phrase late.
+//
+// The guide comes from the MIDI guide card above, so this one holds no guide
+// of its own - a single place to set it up, used by both corrections.
+class TimingCorrectionPanel : public juce::Component,
+                              public PanelContent,
+                              private juce::Timer
+{
+public:
+    TimingCorrectionPanel();
+    ~TimingCorrectionPanel() override;
+
+    void paint(juce::Graphics& g) override;
+    void resized() override;
+    int getPreferredHeight() const override;
+
+    void refreshLocalisedText();
+
+    std::function<Project*()> getCurrentProject;
+
+    /// The guide the MIDI guide card currently holds, empty when it has none.
+    std::function<std::vector<correction::GuideNote>()> getGuideNotes;
+
+    /// The host's tempo and where its first beat falls, for grid mode.
+    std::function<double()> getHostBpm;
+
+    /// Runs the correction and reports what it did.
+    std::function<correction::TimingReport(
+        const std::vector<correction::GuideNote>&,
+        const correction::TimingCorrectionParams&)>
+        onCorrectionRequested;
+
+    std::function<double()> getFramesPerSecond;
+
+private:
+    void timerCallback() override;
+    void runCorrection();
+    void refreshEnablement();
+    void showStatus(const juce::String& text, bool isWarning);
+
+    Project* currentProject() const
+    {
+        return getCurrentProject ? getCurrentProject() : nullptr;
+    }
+
+    correction::TimingMode selectedMode() const;
+    double framesPerSecond() const;
+
+    juce::Label sectionLabel;
+
+    juce::Label modeLabel;
+    juce::ComboBox modeBox;
+
+    juce::Label gridLabel;
+    juce::ComboBox gridBox;
+
+    juce::Label strengthLabel;
+    StyledSlider strengthSlider;
+    juce::Label maxShiftLabel;
+    StyledSlider maxShiftSlider;
+    juce::Label toleranceLabel;
+    StyledSlider toleranceSlider;
+
+    StyledToggleButton lengthToggle;
+    StyledToggleButton anchorToggle;
+
+    juce::TextButton applyButton;
+    juce::Label statusLabel;
+
+    juce::Rectangle<int> cardBounds;
+    bool hadProject = false;
+
+    LocalisationWatcher languageWatcher{[this] { refreshLocalisedText(); }};
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TimingCorrectionPanel)
+};

@@ -76,6 +76,12 @@ public:
     /// whenever the set of tracks may have changed.
     void refreshGuideSources();
 
+    /// The guide Apply would use, for the timing card to share.
+    std::vector<correction::GuideNote> getActiveGuideNotes() const
+    {
+        return activeGuideNotes();
+    }
+
 private:
     void timerCallback() override;
     void chooseFile();

@@ -321,6 +321,12 @@ VariAudioInspector::VariAudioInspector()
     midiGuidePanel.getCurrentProject = [this] { return getCurrentProject ? getCurrentProject() : nullptr; };
     content.addAndMakeVisible(midiGuidePanel);
 
+    timingPanel.getCurrentProject = [this] { return getCurrentProject ? getCurrentProject() : nullptr; };
+    // One place to set the guide up: the timing card reads whatever the MIDI
+    // guide card currently holds, file or track.
+    timingPanel.getGuideNotes = [this] { return midiGuidePanel.getActiveGuideNotes(); };
+    content.addAndMakeVisible(timingPanel);
+
     refreshLocalisedText();
     // Selection, snap state and values change from many places (canvas,
     // parameter panel, host); polling keeps the inspector honest.
@@ -526,7 +532,8 @@ int VariAudioInspector::getContentHeight() const
 {
     return kPadY + kVariAudioCardHeight + kPadY + kEditorScaleCardHeight +
            harmonyPanel.getPreferredHeight() +
-           midiGuidePanel.getPreferredHeight() + kPadY;
+           midiGuidePanel.getPreferredHeight() +
+           timingPanel.getPreferredHeight() + kPadY;
 }
 
 void VariAudioInspector::resized()
@@ -583,5 +590,6 @@ void VariAudioInspector::layoutContent(int width)
     area.setWidth(width);
     harmonyPanel.setBounds(area.removeFromTop(harmonyPanel.getPreferredHeight()));
     midiGuidePanel.setBounds(area.removeFromTop(midiGuidePanel.getPreferredHeight()));
+    timingPanel.setBounds(area.removeFromTop(timingPanel.getPreferredHeight()));
     content.repaint();
 }

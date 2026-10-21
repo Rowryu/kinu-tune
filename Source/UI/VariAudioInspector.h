@@ -10,6 +10,7 @@
 #include "Components/StyledWidgets.h"
 #include "HarmonyPanel.h"
 #include "MidiGuidePanel.h"
+#include "TimingCorrectionPanel.h"
 #include <array>
 #include <functional>
 #include <optional>
@@ -42,6 +43,7 @@ public:
 
     HarmonyPanel& getHarmonyPanel() { return harmonyPanel; }
     MidiGuidePanel& getMidiGuidePanel() { return midiGuidePanel; }
+    TimingCorrectionPanel& getTimingPanel() { return timingPanel; }
 
     // Asked on every refresh; never cached (see HarmonyPanel).
     std::function<Project*()> getCurrentProject;
@@ -137,6 +139,7 @@ private:
 
     HarmonyPanel harmonyPanel; // draws its own card and title
     MidiGuidePanel midiGuidePanel; // likewise
+    TimingCorrectionPanel timingPanel; // likewise
 
     LocalisationWatcher languageWatcher{[this] { refreshLocalisedText(); }};
 
