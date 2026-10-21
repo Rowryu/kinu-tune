@@ -21,6 +21,9 @@ namespace
 // How often the Regions card re-reads the host's region list.
 constexpr int kRegionListRefreshHz = 8;
 juce::String araTrackKey(juce::ARARegionSequence*);
+juce::Colour araTrackColour(juce::ARARegionSequence &sequence,
+                            bool &hasHostColour,
+                            const char **source = nullptr);
 #endif
 
 #if JucePlugin_Enable_ARA
@@ -1136,7 +1139,7 @@ juce::String araTrackKey(juce::ARARegionSequence *sequence) {
 // neither; the UI then uses its default colour.
 juce::Colour araTrackColour(juce::ARARegionSequence &sequence,
                             bool &hasHostColour,
-                            const char **source = nullptr) {
+                            const char **source) {
   const auto toColour = [](const ARA::ARAColor *araColour) {
     return juce::Colour::fromFloatRGBA(araColour->r, araColour->g,
                                        araColour->b, 1.0f);
