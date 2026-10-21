@@ -32,8 +32,26 @@ public:
   void setThreads(int t) { threads = t; }
   PitchDetectorType getPitchDetectorType() const { return pitchDetectorType; }
   void setPitchDetectorType(PitchDetectorType t) { pitchDetectorType = t; }
-  SynthesisEngineType getSynthesisEngineType() const { return synthesisEngineType; }
-  void setSynthesisEngineType(SynthesisEngineType t) { synthesisEngineType = t; }
+  // Resolved, not raw. Until the user picks an engine this is whatever this
+  // build and this machine can actually do, recomputed every launch rather
+  // than read back from the file.
+  //
+  // It matters because the default is hardware- and build-dependent: a binary
+  // with no GPU execution provider compiled in starts on the classic engine,
+  // since the vocoder would run on the CPU at seconds per note. Storing that
+  // choice would then outlive the reason for it - a later build with the GPU
+  // path in it would keep rendering on the classic engine, quietly, with no
+  // sign that the better engine was available.
+  SynthesisEngineType getSynthesisEngineType() const;
+  void setSynthesisEngineType(SynthesisEngineType t)
+  {
+    synthesisEngineType = t;
+    hasStoredSynthesisEngineSetting = true;
+  }
+  bool hasStoredSynthesisEngine() const
+  {
+    return hasStoredSynthesisEngineSetting;
+  }
   // Resolved, not raw: with nothing stored this is the provider's default
   // device, which is not always device 0 (see GpuDeviceList).
   int getGPUDeviceId() const;
@@ -143,6 +161,7 @@ private:
   int threads = 0;
   PitchDetectorType pitchDetectorType = PitchDetectorType::FCPE;
   SynthesisEngineType synthesisEngineType = defaultSynthesisEngineType();
+  bool hasStoredSynthesisEngineSetting = false;
   int gpuDeviceId = 0;
   bool hasStoredGpuDeviceIdSetting = false;
   // "auto" follows the system language until the user picks one.

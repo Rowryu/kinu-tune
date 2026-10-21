@@ -43,10 +43,17 @@ void SettingsManager::loadSettings()
       "pitchDetector", pitchDetectorTypeToString(pitchDetectorType));
   pitchDetectorType = stringToPitchDetectorType(pitchDetectorStr);
 
-  juce::String synthesisEngineStr = xml->getStringAttribute(
-      "synthesisEngine", synthesisEngineTypeToString(synthesisEngineType));
-  synthesisEngineType = synthesisEngineTypeForSavedPreference(
-      stringToSynthesisEngineType(synthesisEngineStr));
+  // Nothing in this program writes settings.xml, so an engine named in it was
+  // typed there by hand: a choice, and restored as one. config.json is the
+  // file this program writes, and the one that needs to say whether its
+  // engine was chosen - see loadConfig() and getSynthesisEngineType().
+  if (xml->hasAttribute("synthesisEngine"))
+  {
+    synthesisEngineType = synthesisEngineTypeForSavedPreference(
+        stringToSynthesisEngineType(
+            xml->getStringAttribute("synthesisEngine")));
+    hasStoredSynthesisEngineSetting = true;
+  }
 
   if (xml->hasAttribute("gpuDeviceId"))
   {
@@ -56,6 +63,18 @@ void SettingsManager::loadSettings()
   language = xml->getStringAttribute("language", language);
 
   saveConfig();
+}
+
+SynthesisEngineType SettingsManager::getSynthesisEngineType() const
+{
+  // Until the user picks an engine, ask what this build and this machine can
+  // do rather than trusting the file. Resolved here rather than at load time
+  // for the same reason as the device below: it stays right when the answer
+  // changes, and keeps "unset" out of the config file.
+  if (hasStoredSynthesisEngineSetting)
+    return synthesisEngineType;
+
+  return defaultSynthesisEngineType();
 }
 
 int SettingsManager::getGPUDeviceId() const
@@ -115,12 +134,16 @@ void SettingsManager::loadConfig()
           pitchDetectorType = stringToPitchDetectorType(pitchDetectorStr);
         }
 
-        if (configObj->hasProperty("synthesisEngine"))
+        // As in loadSettings(): an engine is restored only when the file says
+        // the user picked it.
+        if (configObj->hasProperty("synthesisEngine") &&
+            static_cast<bool>(configObj->getProperty("synthesisEnginePicked")))
         {
           auto synthesisEngineStr =
               configObj->getProperty("synthesisEngine").toString();
           synthesisEngineType = synthesisEngineTypeForSavedPreference(
               stringToSynthesisEngineType(synthesisEngineStr));
+          hasStoredSynthesisEngineSetting = true;
         }
 
         if (configObj->hasProperty("gpuDeviceId"))
@@ -255,7 +278,11 @@ void SettingsManager::saveConfig()
   config->setProperty("pitchDetector",
                       pitchDetectorTypeToString(pitchDetectorType));
   config->setProperty("synthesisEngine",
-                      synthesisEngineTypeToString(synthesisEngineType));
+                      synthesisEngineTypeToString(getSynthesisEngineType()));
+  // Written whether true or false: its absence is what marks a file from
+  // before this flag, whose engine cannot be trusted as a choice.
+  config->setProperty("synthesisEnginePicked",
+                      hasStoredSynthesisEngineSetting);
   if (hasStoredGpuDeviceIdSetting)
     config->setProperty("gpuDeviceId", gpuDeviceId);
   config->setProperty("language", language);
