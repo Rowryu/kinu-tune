@@ -61,6 +61,21 @@ std::vector<T*> findChildren(juce::Component& root)
     return found;
 }
 
+/// Find one of the inspector's own menus by id.
+///
+/// Identifying them by item count used to work and silently stopped when a
+/// new card with a two-item menu was added to the inspector: the search found
+/// that one instead. An id says which menu is meant.
+inline juce::ComboBox* findComboById(juce::Component& root,
+                                     const juce::String& id)
+{
+    for (auto* box : findChildren<juce::ComboBox>(root))
+        if (box->getComponentID() == id)
+            return box;
+    return nullptr;
+}
+
+
 struct Fixture
 {
     Project project;
@@ -286,15 +301,8 @@ int main()
         inspector.setSize(VariAudioInspector::preferredWidth, 560);
         inspector.refresh();
 
-        juce::ComboBox* rootBox = nullptr;
-        juce::ComboBox* modeBox = nullptr;
-        for (auto* box : findChildren<juce::ComboBox>(inspector))
-        {
-            if (box->getNumItems() == 12 && box->getItemText(0) == "C")
-                rootBox = box;
-            else if (box->getNumItems() == 14)
-                modeBox = box;
-        }
+        auto* rootBox = findComboById(inspector, "variaudio.scaleRoot");
+        auto* modeBox = findComboById(inspector, "variaudio.scaleMode");
         juce::ToggleButton* useProjectKey = nullptr;
         for (auto* toggle : findChildren<juce::ToggleButton>(inspector))
             if (toggle->getButtonText() == TR("scale.use_project_key"))
@@ -638,15 +646,8 @@ int main()
         VariAudioInspector inspector;
         inspector.getCurrentProject = [&project] { return &project; };
         inspector.refresh();
-        juce::ComboBox* smartBox = nullptr;
-        juce::ComboBox* snapBox = nullptr;
-        for (auto* box : findChildren<juce::ComboBox>(inspector))
-        {
-            if (box->getNumItems() == 2)
-                smartBox = box;
-            else if (box->getNumItems() == 3)
-                snapBox = box;
-        }
+        auto* smartBox = findComboById(inspector, "variaudio.smartControls");
+        auto* snapBox = findComboById(inspector, "variaudio.snapMode");
         CHECK(smartBox != nullptr && snapBox != nullptr);
         CHECK(smartBox->getSelectedId() == 2); // all smart controls
         CHECK(snapBox->getSelectedId() == 1);  // Absolute

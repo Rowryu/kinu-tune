@@ -214,6 +214,7 @@ VariAudioInspector::VariAudioInspector()
         if (onShowAllSmartControlsChanged)
             onShowAllSmartControlsChanged(smartControlsBox.getSelectedId() == 2);
     };
+    smartControlsBox.setComponentID("variaudio.smartControls");
     content.addAndMakeVisible(smartControlsBox);
 
     styleCombo(snapModeBox);
@@ -224,6 +225,7 @@ VariAudioInspector::VariAudioInspector()
         if (id >= 1 && id <= 3)
             setSnapModeInternal(static_cast<SnapMode>(id - 1), true);
     };
+    snapModeBox.setComponentID("variaudio.snapMode");
     content.addAndMakeVisible(snapModeBox);
 
     targetLabel.setFont(AppFont::getFont(12.0f));
@@ -293,6 +295,7 @@ VariAudioInspector::VariAudioInspector()
         if (id >= 1 && id <= static_cast<int>(kRootLabels.size()))
             applyScaleRoot(id - 1);
     };
+    scaleRootBox.setComponentID("variaudio.scaleRoot");
     content.addAndMakeVisible(scaleRootBox);
 
     styleCombo(scaleModeBox);
@@ -304,6 +307,7 @@ VariAudioInspector::VariAudioInspector()
         if (id >= 1 && id <= static_cast<int>(kModeOptions.size()))
             applyScaleMode(kModeOptions[static_cast<size_t>(id - 1)].mode);
     };
+    scaleModeBox.setComponentID("variaudio.scaleMode");
     content.addAndMakeVisible(scaleModeBox);
 
     snapScaleToggle.onClick = [this]
