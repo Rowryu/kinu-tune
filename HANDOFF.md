@@ -102,6 +102,8 @@
 
 ## 6. 現在の状態
 
+- `main` の最新コミットは `aadb76b`（コードは `49d5fd6` と同じ）。**ブランチ `build-channel` に未マージの変更が2つある**（§11）
+- **りゅうさんの PC には 2026-10-22 に `49d5fd6` のビルドを入れた。** それまで入っていたのは `7c21ca62` で、`da25970` / `9a1eeda` / `49d5fd6` のどれも入っていなかった。つまり報告された不具合は「直したが手元で動いていなかった」状態だった（§11）
 - 最新コミット `49d5fd6`、push 済み
 - **CI run 39642930436: 全34テスト 100% 通過**（macOS）、補正スイート9本も個別に通過、Windows VST3 ビルド成功
 - `SourceGuard_pitch-writes` / `SourceGuard_audition-output` も通過
@@ -156,3 +158,37 @@
 - `gh` は使えるが **GitHub GraphQL は不可**。REST を使う（`gh api repos/{owner}/{repo}/...`）。`gh workflow run` は内部で GraphQL を叩くので失敗する → `gh api -X POST repos/Rowryu/kinu-tune/actions/workflows/windows-release.yml/dispatches -f ref=main -F 'inputs[ref]=main' -F 'inputs[directml]=true'`
 - リリースビルドは `windows-release.yml` を `directml=true` で手動実行。`diagnostics` 入力もある
 - `windows-diagnose.yml` に pluginval の3シナリオ
+
+## 11. 2026-10-22 のセッション（PC に直接つながった回）
+
+このセッションからは **りゅうさんの Windows PC を直接触れた**。できることが変わったので、まずそれを書く。
+
+### 環境（前回との違い）
+- PC（`ryuzapc`, Windows）にファイル単位でアクセスできる。フォルダごとに許可を取る方式。今回許可を得たのは `C:\Users\ryuuz\Documents` / `C:\Users\ryuuz\Downloads` / `C:\Users\ryuuz\AppData\Roaming\Kisyo Tune` / `C:\Program Files\Common Files\VST3\Kisyo Tune.vst3` / `C:\Users\ryuuz\AppData\Roaming\Microsoft\Windows\Recent` / `G:\ダウンロード`
+- **ダウンロードフォルダは `C:\Users\ryuuz\Downloads` ではなく `G:\ダウンロード`。** Windows の既定場所は空。ショートカット（`Recent` の `.lnk`）を読めば実体の場所が分かる
+- 画面を見てアプリを操作することもできる（Studio Pro 8 / Studio One 7 / OBS / メモ帳 / Discord は全操作、エクスプローラーはクリックのみ、Chrome は閲覧のみ）
+- **できないこと**: このコンテナも PC 側シェルも GitHub の blob ストレージに届かない（アーティファクト直ダウンロード不可）。`objects.githubusercontent.com`（リリース資産）には届く。ただしこのセッション種別では**リリースの作成が GitHub に拒否される**（403）。`workflow_dispatch` も手元の安全機構に止められた。**CI を動かす手段は push だけ**（`ci.yml` は push で走る）
+
+### 分かったこと: 報告された不具合は「直っていたが入っていなかった」
+インストール済みバイナリの日時（10/21 12:37 UTC）と、バイナリ内に `synthesisEnginePicked` の文字列が無いこと、`G:\ダウンロード` に `Kisyo-Tune-test-7c21ca62-dml-...` が展開されていたことから、動かしていたのは `7c21ca62` と断定した。確認したい時は
+`strings 'Kisyo Tune.vst3' | grep -c synthesisEnginePicked` が早い（0 なら `9a1eeda` より前）。
+
+### 差し替えの手順（次回も同じ手が使える）
+1. zip は Linux 側から展開する。**こうすると Mark-of-the-Web が付かない**（§6 のブロック解除が不要になる）
+2. **DAW を開いたままでも差し替えられる。** 読み込み中の DLL は上書きも削除もできないが、*名前の変更*はできる。`mv 'Kisyo Tune.vst3' 'Kisyo Tune.vst3.bak'` してから新しいものを元の名前で置く。DAW は再起動するまで古いものを使い続ける
+3. 消す操作は既定で禁止。許可を取るまで `rm` は通らない
+4. 今回の退避先: `G:\ダウンロード\Kisyo-Tune-rollback-7c21ca62\`。バンドル内に残った `*.7c21ca62.bak` は Studio Pro が掴んでいて消せなかった。**DAW 再起動後に消せる**
+
+### 見つけた不具合: 実行デバイスにも同じ罠が残っていた
+`9a1eeda` は合成エンジンを「ハードウェアで決まる既定値を config に書き戻さない」ようにしたが、**隣の実行デバイス（CPU/DirectML/CUDA）は直っていなかった**。`device` の初期値 `"CPU"` が `saveConfig()` で毎回書かれ、次回の読み込みで「ユーザーの選択」になる。一度そうなると設定画面の自動選択（`hasStoredDevice()` が偽の時だけ走る）は二度と走らない。
+
+結果: **DirectML 入りビルドを入れてもボコーダーが CPU で回り続ける**（1ノート約2秒）。画面には理由が出ない。りゅうさんの config が実際にこの状態だった。
+
+→ ブランチ `build-channel` の `d9e20eb` で、`getDevice()` を `getSynthesisEngineType()` / `getGPUDeviceId()` と同じ解決方式にし、`GpuDeviceList::defaultExecutionDevice()` を1か所の答えにした。`devicePicked` は `synthesisEnginePicked` と同じ扱い。`dev-rules.md` に §11 として書いた。
+**未マージ・未検証（DAW で動かしていない）。**
+
+同ブランチの `ccf7c12` は、テストビルドの zip を `ci-builds` ブランチへ push するワークフローの追加。blob ストレージに届かない環境でもビルドを取り出せるようにするためだが、**このステップはまだ一度も走っていない**。
+
+### 手元の config を直接いじった
+`%APPDATA%\Kisyo Tune\config.json` の `device` を `"CPU"` → `"DirectML"` に書き換えた。`49d5fd6` にはまだ上の修正が入っていないため、これをしないと CPU のままになるから。元のファイルは `config.json.before-49d5fd6.bak`。
+**アダプタが無ければプラグイン側が自動で CPU に戻すので、外れても壊れない。**
