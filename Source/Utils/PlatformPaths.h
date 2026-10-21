@@ -251,17 +251,17 @@ namespace PlatformPaths
     inline juce::File getLogsDirectory()
     {
 #if JUCE_MAC
-        // macOS: ~/Library/Logs/Kinu Tune/
+        // macOS: ~/Library/Logs/Kisyo Tune/
         return juce::File::getSpecialLocation(juce::File::userHomeDirectory)
             .getChildFile("Library/Logs")
             .getChildFile(kProductFolderName);
 #elif JUCE_WINDOWS
-        // Windows: %APPDATA%/Kinu Tune/Logs/
+        // Windows: %APPDATA%/Kisyo Tune/Logs/
         return juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory)
             .getChildFile(kProductFolderName)
             .getChildFile("Logs");
 #else
-        // Linux: ~/.config/Kinu Tune/logs/
+        // Linux: ~/.config/Kisyo Tune/logs/
         return juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory)
             .getChildFile(kProductFolderName)
             .getChildFile("logs");
