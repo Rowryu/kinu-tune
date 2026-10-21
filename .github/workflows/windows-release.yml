@@ -109,6 +109,36 @@ jobs:
         run: |
           gh release upload "$env:RELEASE_TAG" "$env:ZIP_NAME.zip" "$env:LITE_ZIP_NAME.zip" --repo "$env:GITHUB_REPOSITORY" --clobber
 
+      # Workflow artifacts live in blob storage, which some networks cannot
+      # reach - the same reason the test logs go to a branch. git over HTTPS
+      # is reachable wherever the repository is, so a test build also goes to
+      # the ci-builds branch. The push is forced onto a single commit, so the
+      # branch holds one build at a time and old binaries fall out of reach
+      # of the next garbage collection instead of accumulating.
+      - name: Publish the plug-in-only build to the ci-builds branch
+        if: ${{ inputs.tag == '' || inputs.ref != '' }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -eu
+          work=/tmp/buildrepo
+          rm -rf "$work"
+          mkdir -p "$work"
+          cp "$LITE_ZIP_NAME.zip" "$work/"
+          cd "$work"
+          printf '%s\n' \
+            "Commit: $GITHUB_SHA" \
+            "Run: $GITHUB_RUN_ID" \
+            "DirectML: ${{ inputs.directml }}" \
+            "Diagnostics: ${{ inputs.diagnostics }}" \
+            "Zip: $LITE_ZIP_NAME.zip" > BUILD.txt
+          git init -q -b ci-builds
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Plug-in-only build for run $GITHUB_RUN_ID ($GITHUB_SHA)"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" ci-builds
+
       # Uploaded separately so the plug-in can be downloaded on its own:
       # a single artifact holding both would make every download carry the
       # models again.
