@@ -5,6 +5,8 @@
 #include "TimingCorrectionPanel.h"
 
 #include "../Utils/Constants.h"
+
+#include <cmath>
 #include "../Utils/UI/Theme.h"
 #include "Components/AppFont.h"
 
@@ -230,11 +232,28 @@ void TimingCorrectionPanel::runCorrection()
     params.timing.correctNoteLength = lengthToggle.getToggleState();
 
     const int gridId = gridBox.getSelectedId();
-    params.grid.framesPerSecond = framesPerSecond();
+    const double fps = framesPerSecond();
+    params.grid.framesPerSecond = fps;
     params.grid.bpm = getHostBpm ? getHostBpm() : 0.0;
     params.grid.divisionsPerBeat =
         gridId >= 1 && gridId <= 4 ? kDivisionsForId[gridId] : 4;
     params.gridToleranceFrames = toleranceSlider.getValue();
+
+    // Anchor the grid to the host's beats, not to the start of this region's
+    // audio. Notes are numbered from their own modification's frame zero,
+    // which sits at an arbitrary point in the song, so a grid left at frame
+    // zero lands wherever the clip happens to begin.
+    params.grid.firstBeatFrame = 0.0;
+    if (params.grid.bpm > 0.0 && getProjectHostOffsetSeconds)
+    {
+        const double offset = getProjectHostOffsetSeconds();
+        const double secondsPerBeat = 60.0 / params.grid.bpm;
+        // The last host beat at or before this region's frame zero, expressed
+        // in project frames (so usually zero or slightly negative).
+        const double beatBefore =
+            std::floor(offset / secondsPerBeat) * secondsPerBeat;
+        params.grid.firstBeatFrame = (beatBefore - offset) * fps;
+    }
 
     const auto guide = getGuideNotes ? getGuideNotes()
                                      : std::vector<correction::GuideNote>{};

@@ -43,8 +43,13 @@ public:
     /// The guide the MIDI guide card currently holds, empty when it has none.
     std::function<std::vector<correction::GuideNote>()> getGuideNotes;
 
-    /// The host's tempo and where its first beat falls, for grid mode.
+    /// The host's tempo, for grid mode.
     std::function<double()> getHostBpm;
+
+    /// Host time, in seconds, of this region's frame zero. Grid mode needs
+    /// it: the host's beats are on the song's timeline, and the notes are
+    /// numbered from the start of their own audio.
+    std::function<double()> getProjectHostOffsetSeconds;
 
     /// Runs the correction and reports what it did.
     std::function<correction::TimingReport(

@@ -216,6 +216,8 @@ public:
   // The provider returns the guide already converted to THIS region's frame
   // grid - the caller knows both placements, and the panel should not have to.
   void setHostBpmProvider(std::function<double()> getBpm) override;
+  void setProjectHostOffsetProvider(
+      std::function<double()> getOffsetSeconds) override;
   void setGuideTrackProvider(
       std::function<std::vector<MainViewTrackEntry>()> listTracks,
       std::function<std::vector<correction::GuideNote>(const juce::String &)>

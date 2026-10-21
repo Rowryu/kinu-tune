@@ -63,6 +63,10 @@ private:
     bool tryAdoptAraRegion();
     // Tracks that could act as a pitch guide, and the chosen one's notes
     // converted to the active region's frame grid.
+    // Every region in the ARA document, on every track. Distinct from
+    // collectAraPlaybackRegions(), which answers "what does this instance
+    // work with" and normally sees only the active track.
+    std::vector<juce::ARAPlaybackRegion *> collectDocumentPlaybackRegions() const;
     juce::ARAPlaybackRegion *activeAraRegion();
     std::vector<MainViewTrackEntry> listGuideTrackCandidates();
     std::vector<correction::GuideNote> buildGuideFromTrack(

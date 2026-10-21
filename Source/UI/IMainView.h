@@ -117,6 +117,9 @@ public:
       unset in the standalone app, where the guide can only be a file. */
   /** The host's tempo in BPM, or 0 when there is no host. */
   virtual void setHostBpmProvider(std::function<double()> getBpm) = 0;
+  /** Host time, in seconds, of the edited region's frame zero. */
+  virtual void setProjectHostOffsetProvider(
+      std::function<double()> getOffsetSeconds) = 0;
   virtual void setGuideTrackProvider(
       std::function<std::vector<MainViewTrackEntry>()> listTracks,
       std::function<std::vector<correction::GuideNote>(const juce::String &)>

@@ -340,6 +340,22 @@ void PitchNetAudioProcessorEditor::setupARAMode() {
     return audioProcessor.getTransportController().getTempoBpm();
   });
 
+  // Grid mode needs to know where the edited region sits in the song, or the
+  // beat grid lands wherever its audio happens to start.
+  mainView->setProjectHostOffsetProvider([this] {
+    auto *region = activeAraRegion();
+    if (region == nullptr)
+      return 0.0;
+    double startInModification = 0.0;
+    if (auto *modification = region->getAudioModification())
+      if (auto *source = modification->getAudioSource())
+        if (source->getSampleRate() > 0.0)
+          startInModification =
+              static_cast<double>(region->getStartInAudioModificationSamples()) /
+              source->getSampleRate();
+    return region->getStartInPlaybackTime() - startInModification;
+  });
+
   // A guide can come from another track that has the plug-in on it, which is
   // only possible under ARA: every instance shares one document.
   mainView->setGuideTrackProvider(
@@ -672,6 +688,48 @@ static correction::RegionPlacement placementForRegion(
 // The playback region the canvas is currently editing. The processor keeps
 // the selector rather than the pointer, because the host may destroy and
 // rebuild regions; resolving it against the live list avoids a stale pointer.
+// Every playback region in the ARA document, on every track.
+//
+// collectAraPlaybackRegions() deliberately answers a different question:
+// which regions does THIS instance work with. It gathers from the renderer,
+// the host selection and the document controller, and only falls back to the
+// whole document when those find nothing - so on a normal session it returns
+// the active track alone. A guide has to come from another track, so it needs
+// the document itself.
+std::vector<juce::ARAPlaybackRegion *>
+PitchNetAudioProcessorEditor::collectDocumentPlaybackRegions() const {
+  std::vector<juce::ARAPlaybackRegion *> regions;
+
+  auto *editorView = getARAEditorView();
+  if (editorView == nullptr)
+    return regions;
+  auto *docController = editorView->getDocumentController();
+  if (docController == nullptr)
+    return regions;
+  auto *document =
+      static_cast<juce::ARADocument *>(docController->getDocument());
+  if (document == nullptr)
+    return regions;
+
+  for (auto *sequence : document->getRegionSequences<juce::ARARegionSequence>()) {
+    if (sequence == nullptr)
+      continue;
+    for (auto *region : sequence->getPlaybackRegions<juce::ARAPlaybackRegion>()) {
+      if (region == nullptr || region->getAudioModification() == nullptr ||
+          region->getAudioModification()->getAudioSource() == nullptr)
+        continue;
+      regions.push_back(region);
+    }
+  }
+
+  std::stable_sort(regions.begin(), regions.end(),
+                   [](juce::ARAPlaybackRegion *a, juce::ARAPlaybackRegion *b) {
+                     return a->getStartInPlaybackTime() <
+                            b->getStartInPlaybackTime();
+                   });
+  return regions;
+}
+
 juce::ARAPlaybackRegion *PitchNetAudioProcessorEditor::activeAraRegion() {
   const auto selector = audioProcessor.getActiveAraRegionSelector();
   if (selector.isEmpty())
@@ -694,7 +752,7 @@ PitchNetAudioProcessorEditor::listGuideTrackCandidates() {
   // which of its regions overlap this one is this code's problem, not the
   // user's.
   std::set<juce::String> seen;
-  for (auto *region : collectAraPlaybackRegions()) {
+  for (auto *region : collectDocumentPlaybackRegions()) {
     if (region == nullptr)
       continue;
     auto *sequence = region->getRegionSequence();
@@ -751,7 +809,7 @@ PitchNetAudioProcessorEditor::buildGuideFromTrack(const juce::String &trackKey) 
 
   // A guide track can hold several regions; take them all and let the
   // mapping drop whatever does not overlap.
-  for (auto *region : collectAraPlaybackRegions()) {
+  for (auto *region : collectDocumentPlaybackRegions()) {
     if (region == nullptr || araTrackKey(region->getRegionSequence()) != trackKey)
       continue;
 

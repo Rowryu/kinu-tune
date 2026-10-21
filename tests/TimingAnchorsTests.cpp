@@ -125,6 +125,37 @@ int main()
         CHECK(near(broken.snap(42.0), 42.0, 1e-12)); // no divide by zero
     }
 
+    // --- the grid is anchored where it is told, not at frame zero ---------
+    {
+        // A region that starts 28.3 s into a 120 bpm song: its frame zero is
+        // not on a beat, so a grid left at zero lands between the host's
+        // beats. firstBeatFrame carries that, and without it grid mode snaps
+        // notes to lines the song does not have.
+        TimingGrid grid;
+        grid.framesPerSecond = kFps;
+        grid.bpm = 120.0;
+        grid.divisionsPerBeat = 4;
+
+        const double secondsPerBeat = 0.5;
+        const double offset = 28.3;
+        const double beatBefore =
+            std::floor(offset / secondsPerBeat) * secondsPerBeat; // 28.0
+        grid.firstBeatFrame = (beatBefore - offset) * kFps;       // negative
+
+        CHECK(grid.firstBeatFrame < 0.0);
+
+        // A project frame whose host time is exactly a beat must snap to
+        // itself.
+        const double hostBeat = 29.0;
+        const double frameOfHostBeat = (hostBeat - offset) * kFps;
+        CHECK(near(grid.snap(frameOfHostBeat), frameOfHostBeat, 0.001));
+
+        // And the unanchored grid would NOT have put a line there.
+        TimingGrid unanchored = grid;
+        unanchored.firstBeatFrame = 0.0;
+        CHECK(!near(unanchored.snap(frameOfHostBeat), frameOfHostBeat, 0.5));
+    }
+
     // --- grid targets move the peak, not the note start --------------------
     {
         TimingGrid grid;

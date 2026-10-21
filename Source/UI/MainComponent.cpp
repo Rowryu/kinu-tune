@@ -3099,6 +3099,13 @@ void MainComponent::setHostBpmProvider(std::function<double()> getBpm)
   panel.refreshGuideSources();
 }
 
+void MainComponent::setProjectHostOffsetProvider(
+    std::function<double()> getOffsetSeconds)
+{
+  variAudioInspector.getTimingPanel().getProjectHostOffsetSeconds =
+      std::move(getOffsetSeconds);
+}
+
 void MainComponent::setGuideTrackProvider(
     std::function<std::vector<MainViewTrackEntry>()> listTracks,
     std::function<std::vector<correction::GuideNote>(const juce::String &)>
