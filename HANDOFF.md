@@ -102,7 +102,8 @@
 
 ## 6. 現在の状態
 
-- `main` の最新コミットは `aadb76b`（コードは `49d5fd6` と同じ）。**ブランチ `build-channel` に未マージの変更が2つある**（§11）
+- `main` の最新コミットは `79f536d`。`aadb76b` のあとに §11 の3コミットが乗っている（`build-channel` からマージ済み）
+- **CI run 39667524791: 全34テスト通過・補正スイート9本通過・Windows VST3 ビルド成功**（`79f536d`）
 - **りゅうさんの PC には 2026-10-22 に `49d5fd6` のビルドを入れた。** それまで入っていたのは `7c21ca62` で、`da25970` / `9a1eeda` / `49d5fd6` のどれも入っていなかった。つまり報告された不具合は「直したが手元で動いていなかった」状態だった（§11）
 - 最新コミット `49d5fd6`、push 済み
 - **CI run 39642930436: 全34テスト 100% 通過**（macOS）、補正スイート9本も個別に通過、Windows VST3 ビルド成功
@@ -184,11 +185,15 @@
 
 結果: **DirectML 入りビルドを入れてもボコーダーが CPU で回り続ける**（1ノート約2秒）。画面には理由が出ない。りゅうさんの config が実際にこの状態だった。
 
-→ ブランチ `build-channel` の `d9e20eb` で、`getDevice()` を `getSynthesisEngineType()` / `getGPUDeviceId()` と同じ解決方式にし、`GpuDeviceList::defaultExecutionDevice()` を1か所の答えにした。`devicePicked` は `synthesisEnginePicked` と同じ扱い。`dev-rules.md` に §11 として書いた。
-**未マージ・未検証（DAW で動かしていない）。**
+→ `d9e20eb` で、`getDevice()` を `getSynthesisEngineType()` / `getGPUDeviceId()` と同じ解決方式にし、`GpuDeviceList::defaultExecutionDevice()` を1か所の答えにした。`devicePicked` は `synthesisEnginePicked` と同じ扱い。`dev-rules.md` に §11 として書いた。
 
-同ブランチの `ccf7c12` は、テストビルドの zip を `ci-builds` ブランチへ push するワークフローの追加。blob ストレージに届かない環境でもビルドを取り出せるようにするためだが、**このステップはまだ一度も走っていない**。
+- **CI で確認したこと**: macOS で全34テストと補正スイート9本が通る。Windows VST3 がビルドできる（run 39667524791）
+- **未検証**: DAW で一度も動かしていない。DirectML で実際にボコーダーが立ち上がるか、再合成が何秒になるかは本人の確認待ち
+
+`ccf7c12` は、テストビルドの zip を `ci-builds` ブランチへ push するワークフローの追加。blob ストレージに届かない環境でもビルドを取り出せるようにするためだが、**このステップはまだ一度も走っていない**（`windows-release.yml` は手動実行でしか動かず、このセッションからは起動できなかった）。
 
 ### 手元の config を直接いじった
 `%APPDATA%\Kisyo Tune\config.json` の `device` を `"CPU"` → `"DirectML"` に書き換えた。`49d5fd6` にはまだ上の修正が入っていないため、これをしないと CPU のままになるから。元のファイルは `config.json.before-49d5fd6.bak`。
 **アダプタが無ければプラグイン側が自動で CPU に戻すので、外れても壊れない。**
+
+GPU は **NVIDIA GeForce GTX 1650**（OBS のログ `%APPDATA%\obs-studio\logs` で確認）。単体の非 Intel・非内蔵アダプタなので、`defaultSynthesisEngineType()` の `vocoderCapable` も `hasGpuInference()` も真になる条件を満たしている。つまり AI リシンセシス + DirectML で動くはずの構成。
