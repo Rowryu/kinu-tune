@@ -64,7 +64,7 @@ jobs:
         run: |
           set -o pipefail
           ctest --test-dir build --output-on-failure --no-tests=error \
-            -R "GuideSourceTests|GuidedPitchCorrectionTests|MidiFileReaderTests|MidiGuideCorrectionTests|RegionMappingTests|TimingMapTests" \
+            -R "GuideSourceTests|GuidedPitchCorrectionTests|MidiFileReaderTests|MidiGuideCorrectionTests|RegionMappingTests|TimingAnchorsTests|TimingMapTests" \
             2>&1 | tee ctest-correction.log
 
       - name: Publish the test output to the ci-logs branch
