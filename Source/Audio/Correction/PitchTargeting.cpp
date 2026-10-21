@@ -45,7 +45,9 @@ std::vector<PitchTargetResult> computePitchTargets(
         float shift = fullShift * strength * std::clamp(match.confidence, 0.0f, 1.0f);
         shift = std::clamp(shift, -ceiling, ceiling);
 
-        if (shift == 0.0f)
+        // Below the dead band the note is left exactly as it was sung,
+        // rather than re-rendered for a move nobody can hear.
+        if (std::abs(shift) < std::max(params.minShiftSemitones, 0.0f))
             continue;
 
         out.correctedMidiNote = sung[i].midiNote + shift;

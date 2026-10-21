@@ -253,6 +253,45 @@ void testUnmatchedNotesAreUntouched()
               "pitch is passed through exactly");
 }
 
+void testInaudibleShiftsAreNotMade()
+{
+    std::printf("a note already in tune is left exactly as sung\n");
+
+    // Two cents flat. Correcting it is not wrong, it is pointless: nobody
+    // hears a cent and a quarter, and the note would be re-rendered for it.
+    // That is the whole cost of correcting a take that was mostly fine - the
+    // audio of every note goes through the engine whether it needed to or
+    // not, and comes back a little less like the recording.
+    const std::vector<SungNote> sung = {sungNote(0, 1, 59.98f)};
+    const std::vector<GuideNote> guide = {guideNote(0, 1, 60.0f)};
+    const auto matches = alignNotesToGuide(sung, guide);
+
+    PitchTargetParams params;
+    params.correctionStrength = 1.0f;
+
+    const auto targets = computePitchTargets(sung, guide, matches, params);
+    check(matches[0].isMatched(), "the note did match the guide");
+    check(!targets[0].corrected, "no correction was applied");
+    checkNear(targets[0].correctedMidiNote, 59.98f, 1e-6f,
+              "the sung pitch is passed through bit for bit");
+    checkNear(targets[0].appliedShiftSemitones, 0.0f, 1e-6f,
+              "and no shift is reported");
+
+    // Ten cents is audible on a sustained vowel, so that one is corrected:
+    // the dead band must not swallow real tuning errors.
+    const std::vector<SungNote> flat = {sungNote(0, 1, 59.90f)};
+    const auto flatTargets =
+        computePitchTargets(flat, guide, alignNotesToGuide(flat, guide), params);
+    check(flatTargets[0].corrected, "ten cents flat is still corrected");
+
+    // And the band is a setting, not a floor: at zero the old behaviour is
+    // back, which is what makes it testable in isolation.
+    PitchTargetParams noBand = params;
+    noBand.minShiftSemitones = 0.0f;
+    const auto unbanded = computePitchTargets(sung, guide, matches, noBand);
+    check(unbanded[0].corrected, "with no dead band the tiny move is made");
+}
+
 void testShortAndLongNotes()
 {
     std::printf("note length does not change the decision\n");
@@ -294,6 +333,7 @@ int main()
     testMaxShiftIsRespected();
     testLowConfidenceIsLeftAlone();
     testUnmatchedNotesAreUntouched();
+    testInaudibleShiftsAreNotMade();
     testShortAndLongNotes();
 
     std::printf("\n%d checks, %d failures\n", checks, failures);

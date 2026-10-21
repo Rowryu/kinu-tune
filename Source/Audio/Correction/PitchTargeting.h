@@ -25,6 +25,24 @@ struct PitchTargetParams
 
     /// Matches below this confidence are left uncorrected entirely.
     float minConfidence = 0.25f;
+
+    /// Shifts smaller than this are not worth making, in semitones.
+    ///
+    /// A correction is not free: the note it touches gets re-rendered, and
+    /// every engine costs something to pass through. The classic engine
+    /// stretches the original waveform; the vocoder rebuilds the voice from
+    /// an 80-band mel spectrogram, which cannot carry everything the
+    /// recording held. Audio left alone keeps all of it, which is why
+    /// Melodyne's untouched notes sound untouched.
+    ///
+    /// Three cents is comfortably under what can be heard on a sustained
+    /// vowel - the difference limen for a complex tone in musical context is
+    /// several times that - so this trades nothing audible for leaving a
+    /// note that was already in tune exactly as it was sung. Without it a
+    /// note two cents flat is "corrected" by a cent and a quarter and
+    /// re-rendered for it, and correcting a whole take therefore re-renders
+    /// the whole take whether or not it needed the help.
+    float minShiftSemitones = 0.03f;
 };
 
 /// What the correction decided for one sung note.
