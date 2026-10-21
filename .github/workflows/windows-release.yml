@@ -21,6 +21,11 @@ on:
         type: boolean
         required: false
         default: false
+      directml:
+        description: "Build the vocoder's DirectML GPU path. Needs a graphics card at runtime; without one the plug-in still starts on the classic engine."
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: write
@@ -45,7 +50,10 @@ jobs:
       # default in CMakeLists.txt, so turn it off explicitly.
       - name: Configure
         run: >
-          cmake -B build -DUSE_DIRECTML=OFF -DPITCHNET_DEV_BUILD=OFF
+          cmake -B build
+          -DUSE_DIRECTML=${{ inputs.directml && 'ON' || 'OFF' }}
+          -DUSE_BUNDLED_DIRECTML_RUNTIME=${{ inputs.directml && 'ON' || 'OFF' }}
+          -DPITCHNET_DEV_BUILD=OFF
           -DPITCHNET_ARA_DIAGNOSTICS=${{ inputs.diagnostics && 'ON' || 'OFF' }}
           -DPITCHNET_BUILD_TESTS=OFF
 
@@ -63,6 +71,7 @@ jobs:
           $version = "$env:RELEASE_TAG".TrimStart('v')
           if (-not $version) { $version = "test-$($env:GITHUB_SHA.Substring(0,8))" }
           if ("${{ inputs.diagnostics }}" -eq "true") { $version = "$version-aradiag" }
+          if ("${{ inputs.directml }}" -eq "true") { $version = "$version-dml" }
           $base = "Kisyo-Tune-$version-Windows-x64"
           $lite = "$base-plugin-only"
           $vst3 = "build/PitchNetPlugin_artefacts/Release/VST3/Kisyo Tune.vst3"
