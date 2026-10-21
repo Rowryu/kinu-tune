@@ -130,9 +130,19 @@ SynthesisEngineType defaultSynthesisEngineType()
 #if JUCE_LINUX
   return SynthesisEngineType::Psola;
 #elif defined(_WIN32)
+#if !defined(USE_DIRECTML) && !defined(USE_CUDA)
+  // No GPU execution provider was compiled in, so the vocoder would run on
+  // the CPU however good the graphics card is. Measured on a CPU-only build,
+  // that is around two seconds to re-render a single edited note, which is
+  // not usable for editing. The adapter check below answers "is there a GPU
+  // worth using DirectML on", which is the wrong question when DirectML is
+  // not in the binary at all.
+  return SynthesisEngineType::Psola;
+#else
   return getWindowsGpuCapabilities().vocoderCapable
              ? SynthesisEngineType::Vocoder
              : SynthesisEngineType::Psola;
+#endif
 #else
   return SynthesisEngineType::Vocoder;
 #endif
