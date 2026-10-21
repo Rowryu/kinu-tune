@@ -63,3 +63,10 @@
 - コミットの前に、テスト全部(`ctest --test-dir build`)と pluginval(厳しさ 5)を通す。`pitchnet_ui` にリンクするテストは、UI を変えたら全体をビルドしてから流す
 - GitHub に送ったら、自動チェック(CI)が通ったことを確かめる
 - 新しく作るソースファイルの先頭には、Kinu Tune の著作権とライセンスの3行を書く(既存の新規ファイルと同じ文面)
+
+## 11. ハードウェアで決まる既定値を config.json に戻さない
+
+- 合成エンジン・実行デバイス(CPU/DirectML/CUDA)・GPU デバイス ID は、**ユーザーが選ぶまでビルドとマシンから毎回決め直す**。`SettingsManager` の `getSynthesisEngineType()` / `getDevice()` / `getGPUDeviceId()` が必ず通す入口で、保存された値を読むのは「選んだ」印が立っている時だけ
+- `saveConfig()` はこの3つを毎回書き出す。書き出した値を次回「選択」として読み戻さないために、`synthesisEnginePicked` と `devicePicked` を真偽どちらでも必ず書く。**キーが無いこと**が「この仕組みより前のファイル」の印なので、条件付きで書かない
+- メンバー変数(`device`、`synthesisEngineType`)を直接読まない。読むと、起動時の仮の値がそのまま使われる
+- 破ると: テストでは分からない。症状は「DirectML 入りのビルドを入れたのに CPU で動き続ける」「GPU があるのに PSOLA のまま」で、画面には理由が何も出ない。実際に両方起きている

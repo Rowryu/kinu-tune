@@ -762,14 +762,15 @@ void SettingsComponent::updateDeviceList()
   const bool shouldUseDefaultDevice =
       settingsManager == nullptr || !settingsManager->hasStoredDevice();
 
-  // Auto-select based on compile-time flags until the user saves a preference.
+  // Until the user saves a preference, show what the vocoder is actually
+  // running on. SettingsManager::getDevice() resolves the same way, so the
+  // dialog cannot show CPU while the engine uses the GPU, or the reverse.
   if (shouldUseDefaultDevice && currentDevice == "CPU")
   {
-#if defined(_WIN32) && defined(USE_DIRECTML)
-    // On Windows, prefer DirectML when the runtime exposes the provider.
+    const auto preferred = GpuDeviceList::defaultExecutionDevice();
     for (int i = 0; i < devices.size(); ++i)
     {
-      if (devices[i] == "DirectML")
+      if (devices[i] == preferred)
       {
         selectedIndex = i;
         currentDevice = devices[i];
@@ -777,20 +778,6 @@ void SettingsComponent::updateDeviceList()
         break;
       }
     }
-#elif defined(USE_CUDA)
-    // If CUDA is compiled in, default to CUDA
-    for (int i = 0; i < devices.size(); ++i)
-    {
-      if (devices[i] == "CUDA")
-      {
-        selectedIndex = i;
-        currentDevice = devices[i];
-        break;
-      }
-    }
-#else
-    // No GPU compiled in, stay on CPU
-#endif
   }
 
   for (int i = 0; i < devices.size(); ++i)

@@ -245,4 +245,30 @@ bool hasGpuInference()
   return false;
 #endif
 }
+
+juce::String defaultExecutionDevice()
+{
+#if defined(_WIN32) && defined(USE_DIRECTML)
+  // hasGpuInference() answers the same question the device list asks before it
+  // offers DirectML at all: the provider is in this ONNX Runtime and DXGI
+  // reports an adapter. Without an adapter DirectML falls back to the CPU,
+  // which is slower than asking for the CPU outright.
+  return hasGpuInference() ? "DirectML" : "CPU";
+#elif defined(USE_CUDA) && defined(HAVE_ONNXRUNTIME)
+  try
+  {
+    for (const auto &provider : Ort::GetAvailableProviders())
+      if (provider == "CUDAExecutionProvider")
+        return "CUDA";
+  }
+  catch (const std::exception &)
+  {
+  }
+  return "CPU";
+#else
+  // Core ML is listed for the user to choose but is not chosen for them: the
+  // CPU provider is what this has always started on away from Windows.
+  return "CPU";
+#endif
+}
 } // namespace GpuDeviceList

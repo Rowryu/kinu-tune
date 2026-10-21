@@ -77,6 +77,19 @@ SynthesisEngineType SettingsManager::getSynthesisEngineType() const
   return defaultSynthesisEngineType();
 }
 
+juce::String SettingsManager::getDevice() const
+{
+  // Until the user picks one, ask the build and the machine, as the engine and
+  // the device id below already do. Trusting the file here is what kept a
+  // DirectML build running its vocoder on the CPU: "CPU" is this class's
+  // starting value, saveConfig() writes it whether or not anyone chose it, and
+  // the next load read it back as a choice.
+  if (hasStoredDeviceSetting)
+    return device;
+
+  return GpuDeviceList::defaultExecutionDevice();
+}
+
 int SettingsManager::getGPUDeviceId() const
 {
   // Until the user picks a device, follow the provider's own default. Doing it
@@ -85,7 +98,7 @@ int SettingsManager::getGPUDeviceId() const
   if (hasStoredGpuDeviceIdSetting)
     return gpuDeviceId;
 
-  return GpuDeviceList::getDefaultDeviceIndex(device);
+  return GpuDeviceList::getDefaultDeviceIndex(getDevice());
 }
 
 void SettingsManager::applySettings()
@@ -94,7 +107,7 @@ void SettingsManager::applySettings()
 
   if (vocoder)
   {
-    vocoder->setExecutionDevice(device);
+    vocoder->setExecutionDevice(getDevice());
     vocoder->setExecutionDeviceId(getGPUDeviceId());
     if (vocoder->isLoaded())
       vocoder->reloadModel();
@@ -118,7 +131,10 @@ void SettingsManager::loadConfig()
       auto configObj = config.getDynamicObject();
       if (configObj)
       {
-        if (configObj->hasProperty("device"))
+        // As with the engine below: a device is restored only when the file
+        // says the user picked it.
+        if (configObj->hasProperty("device") &&
+            static_cast<bool>(configObj->getProperty("devicePicked")))
         {
           device = configObj->getProperty("device").toString();
           hasStoredDeviceSetting = true;
@@ -273,7 +289,11 @@ void SettingsManager::saveConfig()
 
   juce::DynamicObject::Ptr config = new juce::DynamicObject();
 
-  config->setProperty("device", device);
+  config->setProperty("device", getDevice());
+  // Written whether true or false, as synthesisEnginePicked below is: its
+  // absence is what marks a file from before this flag, whose device cannot be
+  // trusted as a choice.
+  config->setProperty("devicePicked", hasStoredDeviceSetting);
   config->setProperty("threads", threads);
   config->setProperty("pitchDetector",
                       pitchDetectorTypeToString(pitchDetectorType));

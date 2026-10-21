@@ -21,7 +21,7 @@ public:
 
   void loadSettings();
   void applySettings();
-  juce::String getDevice() const { return device; }
+  juce::String getDevice() const;
   void setDevice(const juce::String &d)
   {
     device = d;

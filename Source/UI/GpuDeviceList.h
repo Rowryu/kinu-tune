@@ -54,4 +54,16 @@ juce::StringArray getDisplayAdapterNames();
  * on Windows when the DirectML provider has a hardware adapter to run on.
  */
 bool hasGpuInference();
+
+/**
+ * Execution provider to run on when the user has never picked one: the GPU
+ * provider this build was compiled with, when it has something to run on, and
+ * "CPU" otherwise.
+ *
+ * Asked fresh rather than stored, for the same reason as the synthesis engine:
+ * the answer depends on the build and the machine, and a build that gains or
+ * loses a provider has to be free to change its mind. The Settings dialog and
+ * the vocoder ask the same question here so they cannot disagree.
+ */
+juce::String defaultExecutionDevice();
 } // namespace GpuDeviceList
