@@ -351,5 +351,8 @@
   "timing.status_no_guide": "Load a MIDI guide or choose a guide track first",
   "timing.status_no_tempo": "No host tempo available",
   "timing.status_analyse_first": "Analyse the audio first",
-  "timing.status_done": "Moved {moved} of {total} notes (largest {shift} ms)"
+  "timing.status_done": "Moved {moved} of {total} notes (largest {shift} ms)",
+  "timing.smooth": "Transition smoothness",
+  "timing.smooth_apply": "Smooth transitions",
+  "timing.status_smoothed": "Adjusted transitions on {notes} notes"
 }

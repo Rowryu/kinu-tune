@@ -7,6 +7,7 @@
 #include "../Audio/IO/MidiExporter.h"
 #include "../Models/ProjectSerializer.h"
 #include "../Undo/GuidedPitchAction.h"
+#include "../Undo/PitchToolAction.h"
 #include "../Undo/TimingAction.h"
 #include "../Utils/AppLogger.h"
 #include "../Utils/Constants.h"
@@ -867,6 +868,82 @@ MainComponent::MainComponent(bool enableAudioDevice)
     notifyProjectDataChanged();
 
     return report;
+  };
+
+  // Smooth the glide between notes. The smoothing itself is the existing
+  // per-note boundary transition that the smart-control handles drag; this
+  // only chooses the lengths and applies them to every note at once.
+  timingPanel.onSmoothingRequested =
+      [this](const correction::TransitionParams &params)
+  {
+    int smoothed = 0;
+    auto *project = getProject();
+    if (project == nullptr)
+      return smoothed;
+
+    auto &notes = project->getNotes();
+    std::vector<correction::TransitionNote> input;
+    input.reserve(notes.size());
+    for (const auto &note : notes)
+    {
+      correction::TransitionNote t;
+      t.startFrame = note.getStartFrame();
+      t.endFrame = note.getEndFrame();
+      t.midiNote = note.getMidiNote();
+      t.isRest = note.isRest();
+      input.push_back(t);
+    }
+
+    const auto plan = correction::planTransitions(input, params);
+    if (plan.empty())
+      return smoothed;
+
+    std::vector<Note *> affected;
+    std::vector<TransformParams> before;
+    std::vector<TransformParams> after;
+
+    for (const auto &entry : plan)
+    {
+      if (entry.noteIndex < 0 ||
+          entry.noteIndex >= static_cast<int>(notes.size()))
+        continue;
+      Note &note = notes[static_cast<size_t>(entry.noteIndex)];
+
+      auto previous = TransformParams::fromNote(note);
+      auto next = previous;
+      next.smoothLeftFrames = entry.leftFrames;
+      next.smoothRightFrames = entry.rightFrames;
+      if (next.smoothLeftFrames == previous.smoothLeftFrames &&
+          next.smoothRightFrames == previous.smoothRightFrames)
+        continue;
+
+      affected.push_back(&note);
+      before.push_back(previous);
+      after.push_back(next);
+      ++smoothed;
+    }
+
+    if (affected.empty())
+      return smoothed;
+
+    for (size_t i = 0; i < affected.size(); ++i)
+    {
+      after[i].applyToNote(*affected[i]);
+      affected[i]->markDirty();
+    }
+    PitchCurveProcessor::rebuildDeltaForNotes(*project, affected);
+
+    if (undoManager)
+      undoManager->addAction(std::make_unique<PitchToolAction>(
+          project, affected, before, after));
+
+    pianoRoll.invalidateBasePitchCache();
+    pianoRoll.repaint();
+    pianoRollView.refreshOverview();
+    resynthesizeIncremental();
+    notifyProjectDataChanged();
+
+    return smoothed;
   };
 
   variAudioInspector.isProjectKeyScope = [this] { return isTrackViewMode(); };

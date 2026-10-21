@@ -5,6 +5,7 @@
 #pragma once
 
 #include "../Audio/Correction/TimingCorrection.h"
+#include "../Audio/Correction/TransitionSmoothing.h"
 #include "../JuceHeader.h"
 #include "../Models/Project.h"
 #include "../Utils/Localization.h"
@@ -53,9 +54,13 @@ public:
 
     std::function<double()> getFramesPerSecond;
 
+    /// Smooth the glide between notes. Returns how many notes changed.
+    std::function<int(const correction::TransitionParams&)> onSmoothingRequested;
+
 private:
     void timerCallback() override;
     void runCorrection();
+    void runSmoothing();
     void refreshEnablement();
     void showStatus(const juce::String& text, bool isWarning);
 
@@ -84,6 +89,10 @@ private:
 
     StyledToggleButton lengthToggle;
     StyledToggleButton anchorToggle;
+
+    juce::Label smoothLabel;
+    StyledSlider smoothSlider;
+    juce::TextButton smoothButton;
 
     juce::TextButton applyButton;
     juce::Label statusLabel;

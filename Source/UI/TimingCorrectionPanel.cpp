@@ -28,6 +28,8 @@ constexpr int kPreferredHeight =
     (kLabelledRow + kRowGap) * 2 +   // mode, grid
     (kLabelledRow + kRowGap) * 3 +   // strength, max shift, tolerance
     (kToggleHeight + kRowGap) * 2 +  // note length, anchor
+    kButtonHeight + kRowGap +        // apply
+    kLabelledRow + kRowGap +         // smoothing amount
     kButtonHeight + kRowGap + kStatusRowHeight;
 
 void styleCaption(juce::Label& label)
@@ -93,6 +95,22 @@ TimingCorrectionPanel::TimingCorrectionPanel()
     applyButton.onClick = [this] { runCorrection(); };
     addAndMakeVisible(applyButton);
 
+    styleCaption(smoothLabel);
+    smoothSlider.setRange(0.0, 1.0, 0.01);
+    smoothSlider.setValue(0.5, juce::dontSendNotification);
+    addAndMakeVisible(smoothLabel);
+    addAndMakeVisible(smoothSlider);
+
+    smoothButton.setColour(juce::TextButton::buttonColourId, APP_COLOR_SURFACE_ALT);
+    smoothButton.setColour(juce::TextButton::buttonOnColourId,
+                           APP_COLOR_SURFACE_RAISED);
+    smoothButton.setColour(juce::TextButton::textColourOffId,
+                           APP_COLOR_TEXT_PRIMARY);
+    smoothButton.setColour(juce::TextButton::textColourOnId,
+                           APP_COLOR_TEXT_PRIMARY);
+    smoothButton.onClick = [this] { runSmoothing(); };
+    addAndMakeVisible(smoothButton);
+
     statusLabel.setFont(AppFont::getFont(12.0f));
     statusLabel.setColour(juce::Label::textColourId, APP_COLOR_TEXT_MUTED);
     statusLabel.setJustificationType(juce::Justification::topLeft);
@@ -141,6 +159,8 @@ void TimingCorrectionPanel::refreshLocalisedText()
     lengthToggle.setButtonText(TR("timing.note_length"));
     anchorToggle.setButtonText(TR("timing.anchor_peak"));
     applyButton.setButtonText(TR("timing.apply"));
+    smoothLabel.setText(TR("timing.smooth"), juce::dontSendNotification);
+    smoothButton.setButtonText(TR("timing.smooth_apply"));
 
     const int mode = modeBox.getSelectedId();
     modeBox.clear(juce::dontSendNotification);
@@ -181,6 +201,9 @@ void TimingCorrectionPanel::refreshEnablement()
     const bool ready =
         currentProject() != nullptr && (grid ? hostTempo : haveGuide);
     applyButton.setEnabled(ready);
+    const bool haveProject = currentProject() != nullptr;
+    smoothSlider.setEnabled(haveProject);
+    smoothButton.setEnabled(haveProject);
 
     if (!ready && currentProject() != nullptr)
         showStatus(grid ? TR("timing.status_no_tempo")
@@ -232,6 +255,21 @@ void TimingCorrectionPanel::runCorrection()
                                              framesPerSecond() * 1000.0,
                                          0)),
                report.notesMoved == 0);
+}
+
+void TimingCorrectionPanel::runSmoothing()
+{
+    if (!onSmoothingRequested)
+        return;
+
+    correction::TransitionParams params;
+    params.framesPerSecond = framesPerSecond();
+    params.amount = static_cast<float>(smoothSlider.getValue());
+
+    const int smoothed = onSmoothingRequested(params);
+    showStatus(TR("timing.status_smoothed")
+                   .replace("{notes}", juce::String(smoothed)),
+               smoothed == 0);
 }
 
 void TimingCorrectionPanel::showStatus(const juce::String& text, bool isWarning)
@@ -286,5 +324,10 @@ void TimingCorrectionPanel::resized()
 
     applyButton.setBounds(bounds.removeFromTop(kButtonHeight));
     bounds.removeFromTop(kRowGap);
+
+    labelled(smoothLabel, smoothSlider);
+    smoothButton.setBounds(bounds.removeFromTop(kButtonHeight));
+    bounds.removeFromTop(kRowGap);
+
     statusLabel.setBounds(bounds.removeFromTop(kStatusRowHeight));
 }

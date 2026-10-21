@@ -349,5 +349,8 @@
   "timing.status_no_guide": "先に MIDI ガイドを読み込むか、ガイドトラックを選んでください",
   "timing.status_no_tempo": "ホストのテンポが取得できません",
   "timing.status_analyse_first": "先に音声を解析してください",
-  "timing.status_done": "{total} 音のうち {moved} 音を動かしました(最大 {shift} ミリ秒)"
+  "timing.status_done": "{total} 音のうち {moved} 音を動かしました(最大 {shift} ミリ秒)",
+  "timing.smooth": "つなぎ目のなめらかさ",
+  "timing.smooth_apply": "つなぎ目をなめらかに",
+  "timing.status_smoothed": "{notes} 音のつなぎ目を調整しました"
 }
