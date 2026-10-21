@@ -1431,6 +1431,10 @@ void PitchNetAudioProcessorEditor::publishAraRegionPreviews(
     preview.startSeconds = start;
     preview.endSeconds = end;
     preview.active = isActive;
+    // An active region has no window Project, so buildRegionPreview never ran
+    // and this has to be set here. For every other region buildRegionPreview
+    // already computed it from the window it built, and overwriting it would
+    // misplace both the inactive-edit and pinned-note passes.
     if (isActive) {
       preview.sourceProject = sourceProject;
       preview.sourceFirstFrame = 0;

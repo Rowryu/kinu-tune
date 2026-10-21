@@ -806,6 +806,13 @@ void PianoRollComponent::setRegionPreviews(MainViewRegionPreviewList previews)
   if (swallowGestureUntilMouseUp && !isMouseButtonDown())
     swallowGestureUntilMouseUp = false;
 
+  // The cached layers are keyed on the view (scroll, zoom, size), not on
+  // which regions exist, so a new preview list has to drop them: pinning a
+  // track changes what should be drawn without moving the view, and the
+  // cache would otherwise keep serving the picture from before.
+  inactiveLayer = {};
+  pinnedLayer = {};
+
   updateScrollBars();
   repaint();
 }
@@ -921,7 +928,7 @@ void PianoRollComponent::drawInactiveRegionEdits(
 
     for (const auto &region : *regionPreviews)
     {
-      if (region.active || region.pinned || region.project == nullptr ||
+      if (region.active || region.project == nullptr ||
           region.endSeconds <= visibleHostStart ||
           region.startSeconds >= visibleHostEnd)
         continue;
@@ -967,8 +974,10 @@ void PianoRollComponent::drawInactiveRegionEdits(
       } else {
         previewCurveRenderer->setProject(region.project.get());
       }
-      previewNoteRenderer->setProject(region.project.get());
-      previewNoteRenderer->draw(lg, NoteRenderer::Pass::Body, false, getWidth());
+      if (!region.pinned) {
+        previewNoteRenderer->setProject(region.project.get());
+        previewNoteRenderer->draw(lg, NoteRenderer::Pass::Body, false, getWidth());
+      }
 
       PitchCurveRenderer::Params params;
       params.showDeltaPitch = showDeltaPitch;
@@ -978,6 +987,9 @@ void PianoRollComponent::drawInactiveRegionEdits(
       params.showCleanedF0Debug = false;
       params.showVocoderF0Debug = false;
       params.componentWidth = getWidth();
+      // A guide track is reference, not material: its line is there to be
+      // compared against, so it sits well under the take's own curve.
+      params.pitchCurveAlpha = region.pinned ? 0.35f : 1.0f;
       curveRenderer->draw(lg, params);
     }
 
