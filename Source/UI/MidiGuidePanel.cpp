@@ -4,6 +4,7 @@
 
 #include "MidiGuidePanel.h"
 
+#include <cmath>
 #include <cstdint>
 #include <vector>
 
@@ -105,6 +106,7 @@ MidiGuidePanel::MidiGuidePanel()
     projectBpmSlider.setValue(120.0, juce::dontSendNotification);
     projectBpmSlider.onValueChange = [this]
     {
+        projectBpmTouched = true;
         guide.placement.projectBpm = projectBpmSlider.getValue();
         applyPlacement();
     };
@@ -163,6 +165,7 @@ MidiGuidePanel::MidiGuidePanel()
 
     refreshLocalisedText();
     refreshTrackMenu();
+    adoptHostTempo();
     refreshEnablement();
 
     // The project is replaced by file loads and ARA rebinds, so the card
@@ -214,7 +217,32 @@ void MidiGuidePanel::refreshLocalisedText()
 void MidiGuidePanel::refreshGuideSources()
 {
     refreshGuideTrackMenu();
+    adoptHostTempo();
     refreshEnablement();
+}
+
+void MidiGuidePanel::adoptHostTempo()
+{
+    if (!getHostBpm)
+        return;
+
+    const double bpm = getHostBpm();
+    if (bpm <= 0.0)
+        return;
+
+    // Only while the user has not set it themselves. Typing a tempo is how
+    // someone corrects a project whose tempo map the plug-in cannot see, and
+    // overwriting that from the host would undo it on the next refresh.
+    if (projectBpmTouched)
+        return;
+
+    if (std::abs(projectBpmSlider.getValue() - bpm) < 0.001)
+        return;
+
+    projectBpmSlider.setValue(bpm, juce::dontSendNotification);
+    guide.placement.projectBpm = bpm;
+    if (guide.isLoaded())
+        applyPlacement();
 }
 
 void MidiGuidePanel::refreshGuideTrackMenu()
@@ -286,6 +314,8 @@ void MidiGuidePanel::timerCallback()
         hadProject = hasProject;
         refreshEnablement();
     }
+
+    adoptHostTempo();
 
     // Tracks appear as the host creates regions and the analysis finishes, so
     // the list is polled rather than pushed. Rebuild only when the set

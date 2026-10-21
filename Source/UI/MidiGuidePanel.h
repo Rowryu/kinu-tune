@@ -68,6 +68,10 @@ public:
     std::function<std::vector<correction::GuideNote>(const juce::String&)>
         buildGuideFromTrack;
 
+    /// The host's tempo, when there is a host. Saves the user typing a
+    /// number the DAW already knows; zero or unset means "no host tempo".
+    std::function<double()> getHostBpm;
+
     /// Re-read the track list. Called when the provider is installed and
     /// whenever the set of tracks may have changed.
     void refreshGuideSources();
@@ -78,6 +82,7 @@ private:
     void applyPlacement();
     void runCorrection();
     void refreshTrackMenu();
+    void adoptHostTempo();
     void refreshGuideTrackMenu();
     void adoptTrackGuide();
     void refreshEnablement();
@@ -134,6 +139,9 @@ private:
 
     juce::Rectangle<int> cardBounds;
     bool hadProject = false;
+    // Set once the user moves the tempo slider, after which the host no
+    // longer overwrites it.
+    bool projectBpmTouched = false;
 
     LocalisationWatcher languageWatcher{[this] { refreshLocalisedText(); }};
 

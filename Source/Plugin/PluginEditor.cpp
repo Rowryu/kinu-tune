@@ -335,6 +335,11 @@ void PitchNetAudioProcessorEditor::setupARAMode() {
   // region (per-region Projects).
   editorView->addListener(this);
 
+  // The DAW knows the tempo, so the card should not make anyone type it.
+  mainView->setHostBpmProvider([this] {
+    return audioProcessor.getTransportController().getTempoBpm();
+  });
+
   // A guide can come from another track that has the plug-in on it, which is
   // only possible under ARA: every instance shares one document.
   mainView->setGuideTrackProvider(

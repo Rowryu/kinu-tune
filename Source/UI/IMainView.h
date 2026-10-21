@@ -115,6 +115,8 @@ public:
       this region's frame grid. ARA only: every instance of the plug-in shares
       one document, so a track another instance analysed is readable. Left
       unset in the standalone app, where the guide can only be a file. */
+  /** The host's tempo in BPM, or 0 when there is no host. */
+  virtual void setHostBpmProvider(std::function<double()> getBpm) = 0;
   virtual void setGuideTrackProvider(
       std::function<std::vector<MainViewTrackEntry>()> listTracks,
       std::function<std::vector<correction::GuideNote>(const juce::String &)>

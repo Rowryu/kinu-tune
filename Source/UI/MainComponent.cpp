@@ -2958,6 +2958,13 @@ void MainComponent::onZoomChanged(float pixelsPerSecond)
   isSyncingZoom = false;
 }
 
+void MainComponent::setHostBpmProvider(std::function<double()> getBpm)
+{
+  auto &panel = variAudioInspector.getMidiGuidePanel();
+  panel.getHostBpm = std::move(getBpm);
+  panel.refreshGuideSources();
+}
+
 void MainComponent::setGuideTrackProvider(
     std::function<std::vector<MainViewTrackEntry>()> listTracks,
     std::function<std::vector<correction::GuideNote>(const juce::String &)>
