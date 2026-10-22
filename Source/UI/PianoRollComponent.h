@@ -352,6 +352,10 @@ private:
   double clampScrollX(double x) const;
   // The active region's span in project time, only in Track mode.
   std::optional<std::pair<double, double>> getTrackModeActiveSpan() const;
+  /// Diagnostic: what the canvas is about to clip against, and where the
+  /// notes actually are. Writes one line per change, logging builds only.
+  void logCanvasGeometry(const char *where, const Project *proj) const;
+  mutable juce::String lastCanvasGeometryLine;
   const MainViewRegionPreview* findTrackRegionAtPointer(juce::Point<float>, bool notesOnly = false) const;
   bool prepareTrackPointer(juce::Point<float>, bool notesOnly = false);
   void drawLoopOverlay(juce::Graphics &g);

@@ -344,7 +344,7 @@
   "timing.grid_thirtysecond": "32分音符",
   "timing.strength": "補正の強さ",
   "timing.max_shift": "最大の移動量(秒)",
-  "timing.tolerance": "この範囲内は動かさない(フレーム)",
+  "timing.tolerance": "この範囲内は動かさない(最大ズレの%)",
   "timing.note_length": "音の長さも合わせる",
   "timing.anchor_peak": "音の山で合わせる(推奨)",
   "timing.apply": "タイミングを補正",

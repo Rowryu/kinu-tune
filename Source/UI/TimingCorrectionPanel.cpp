@@ -73,11 +73,15 @@ TimingCorrectionPanel::TimingCorrectionPanel()
     addAndMakeVisible(maxShiftLabel);
     addAndMakeVisible(maxShiftSlider);
 
-    // In frames at the analysis rate: about 12 ms each, so the default is
-    // roughly 35 ms, below what anyone hears as early or late.
+    // A share of the distance to the nearest grid line, not a number of
+    // frames. In frames it was meaningless on its own: at 200 BPM with a
+    // sixteenth-note grid the lines are 6.5 frames apart, so no note can be
+    // more than 3.2 frames from one, and the old default of 3 frames left
+    // almost nothing it would agree to move. 0% snaps everything, 100% moves
+    // nothing, and the number means the same thing at every tempo.
     styleCaption(toleranceLabel);
-    toleranceSlider.setRange(0.0, 20.0, 0.5);
-    toleranceSlider.setValue(3.0, juce::dontSendNotification);
+    toleranceSlider.setRange(0.0, 100.0, 1.0);
+    toleranceSlider.setValue(25.0, juce::dontSendNotification);
     addAndMakeVisible(toleranceLabel);
     addAndMakeVisible(toleranceSlider);
 
@@ -265,7 +269,10 @@ void TimingCorrectionPanel::runCorrection()
     params.grid.bpm = getHostBpm ? getHostBpm() : 0.0;
     params.grid.divisionsPerBeat =
         gridId >= 1 && gridId <= 4 ? kDivisionsForId[gridId] : 4;
-    params.gridToleranceFrames = toleranceSlider.getValue();
+    // The slider is a share of the furthest a note can be from a grid line,
+    // which is half the spacing between them.
+    params.gridToleranceFrames =
+        toleranceSlider.getValue() / 100.0 * (params.grid.framesPerDivision() / 2.0);
 
     // Anchor the grid to the host's beats, not to the start of this region's
     // audio. Notes are numbered from their own modification's frame zero,

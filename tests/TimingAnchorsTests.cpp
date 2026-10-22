@@ -279,5 +279,43 @@ int main()
         CHECK(guidedTimingTargets({}, {}, {}, {}, {}).empty());
     }
 
+    // --- a fine grid still moves notes -------------------------------------
+    //
+    // The tolerance used to be a number of frames, set once and meant for a
+    // coarse grid. At 200 BPM with a sixteenth-note grid the lines are 6.46
+    // frames apart, so the furthest a note can sit from one is 3.23 frames,
+    // and the old default of 3 frames meant almost nothing could qualify as
+    // out of time. The card now hands down a share of that furthest distance,
+    // which is the same proportion at any tempo.
+    {
+        TimingGrid grid;
+        grid.framesPerSecond = kFps;
+        grid.bpm = 200.0;
+        grid.divisionsPerBeat = 4;
+        grid.firstBeatFrame = 0.0;
+
+        const double step = grid.framesPerDivision();
+        CHECK(step > 6.4 && step < 6.5);          // the case from the report
+
+        const double furthest = step / 2.0;       // 3.23 frames
+        const double tolerance = 0.25 * furthest; // the new default, 25%
+
+        // The vowel's centre lands around frame 9-10, about 2.5 to 2.9 frames
+        // from the nearest line: well out of time, and well inside the old
+        // 3-frame tolerance.
+        const auto rms = syllable(40, 4, 3, 6);
+        const auto note = sung(4, 13);
+
+        const auto now = gridTimingTargets({note}, rms, grid,
+                                           TimingAnchor::EnergyPeak, tolerance);
+        CHECK(now.size() == 1);
+        CHECK(now[0].hasTarget);
+
+        const auto before = gridTimingTargets({note}, rms, grid,
+                                              TimingAnchor::EnergyPeak, 3.0);
+        CHECK(before.size() == 1);
+        CHECK(!before[0].hasTarget);              // what the user saw
+    }
+
     std::cout << "Timing anchor tests passed\n";
 }

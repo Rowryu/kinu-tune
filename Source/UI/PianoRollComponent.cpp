@@ -2914,6 +2914,7 @@ void PianoRollComponent::setProject(Project *proj)
   timelineBeatDenominator =
       project != nullptr ? project->getTimelineBeatDenominator() : 4;
   timelineTempoBpm = project != nullptr ? project->getTimelineTempoBpm() : 120.0;
+  logCanvasGeometry("setProject", project);
   timelineGridDivision = project != nullptr
                              ? project->getTimelineGridDivision()
                              : TimelineGridDivision::Quarter;
@@ -4889,6 +4890,59 @@ double PianoRollComponent::clampScrollX(double x) const
       std::max(minScrollX, getTimelineDuration() * pixelsPerSecond -
                                static_cast<double>(getVisibleContentWidth()));
   return juce::jlimit(minScrollX, maxScrollX, x);
+}
+
+// Why nothing is drawn, when something should be.
+//
+// Track mode clips every note and curve to the active region's span, so a
+// span that disagrees with where the notes are leaves a canvas with a
+// waveform on it and nothing else - which is what a report of "no notes"
+// looked like. One line, only when the numbers change, and only in a build
+// with logging on.
+void PianoRollComponent::logCanvasGeometry(const char *where,
+                                           const Project *proj) const
+{
+#if PITCHNET_LOGGING_ENABLED
+  if (proj == nullptr)
+    return;
+
+  const auto &audio = proj->getAudioData();
+  const auto &notes = proj->getNotes();
+
+  juce::String line;
+  line << "canvas[" << where << "] trackMode=" << (trackViewMode ? "1" : "0")
+       << " notes=" << static_cast<int>(notes.size())
+       << " ranges=" << static_cast<int>(audio.playbackRegionRanges.size());
+
+  for (const auto &[start, end] : audio.playbackRegionRanges)
+    line << " span=[" << juce::String(start, 3) << ".."
+         << juce::String(end, 3) << "]";
+
+  if (!notes.empty())
+  {
+    const double fps = static_cast<double>(SAMPLE_RATE) /
+                       static_cast<double>(HOP_SIZE);
+    double first = 1.0e9;
+    double last = -1.0e9;
+    for (const auto &note : notes)
+    {
+      first = std::min(first, static_cast<double>(note.getStartFrame()) / fps);
+      last = std::max(last, static_cast<double>(note.getEndFrame()) / fps);
+    }
+    line << " notesSeconds=[" << juce::String(first, 3) << ".."
+         << juce::String(last, 3) << "]";
+  }
+
+  line << " timelineOffset=" << juce::String(audio.timelineOffsetSeconds, 3)
+       << " projectToTimeline(0)=" << juce::String(projectToTimeline(0.0), 3);
+
+  if (line == lastCanvasGeometryLine)
+    return;
+  lastCanvasGeometryLine = line;
+  LOG(line);
+#else
+  juce::ignoreUnused(where, proj);
+#endif
 }
 
 std::optional<std::pair<double, double>>

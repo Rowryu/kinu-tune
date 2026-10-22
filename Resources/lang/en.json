@@ -346,7 +346,7 @@
   "timing.grid_thirtysecond": "Thirty-second notes",
   "timing.strength": "Correction strength",
   "timing.max_shift": "Maximum move (seconds)",
-  "timing.tolerance": "Leave alone within (frames)",
+  "timing.tolerance": "Leave alone within (% of largest offset)",
   "timing.note_length": "Correct note length too",
   "timing.anchor_peak": "Align on the note's peak (recommended)",
   "timing.apply": "Correct timing",
