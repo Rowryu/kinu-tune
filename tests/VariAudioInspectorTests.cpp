@@ -712,9 +712,19 @@ int main()
         MidiGuidePanel panel;
         panel.listGuideTracks = [&offered] { return offered; };
 
+        // The editor refreshes once before the track provider is installed,
+        // which hides the row, and again after, which shows it. The second
+        // refresh has to lay the row out or it is visible with no size.
+        panel.setBounds(0, 0, 260, panel.getPreferredHeight());
+        panel.listGuideTracks = nullptr;
+        panel.refreshGuideSources();        // hidden: no provider yet
+        panel.listGuideTracks = [&offered] { return offered; };
+
         panel.refreshGuideSources();
         const auto& menu = panel.getGuideTrackMenu();
         CHECK(menu.isVisible());            // the row stays under ARA
+        CHECK(menu.getWidth() > 0);         // and has somewhere to be drawn
+        CHECK(menu.getHeight() > 0);
         CHECK(!menu.isEnabled());           // but there is nothing to pick
         CHECK(menu.getNumItems() == 1);
         CHECK(menu.getItemText(0) == TR("midiguide.guide_track_unanalysed"));

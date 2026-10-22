@@ -301,8 +301,19 @@ void MidiGuidePanel::refreshGuideTrackMenu()
     // is unreadable: the user has to be able to open the menu and see which
     // tracks were found and what is wrong with them.
     guideTrackBox.setEnabled(haveTracks);
+    const bool wasVisible = guideTrackBox.isVisible();
     guideTrackLabel.setVisible(underAra);
     guideTrackBox.setVisible(underAra);
+
+    // setVisible() lays nothing out, and resized() skips this row while it is
+    // hidden. A row that becomes visible after the last layout pass therefore
+    // keeps the bounds it had then - and at construction that is nothing at
+    // all. The editor hides the row once (setHostBpmProvider refreshes before
+    // the track provider exists) and shows it again a moment later, so the
+    // menu ends up visible and zero-sized every time: present, correct, and
+    // impossible to see. Lay out again whenever the row appears or goes.
+    if (wasVisible != underAra)
+        resized();
 }
 
 void MidiGuidePanel::adoptTrackGuide()
