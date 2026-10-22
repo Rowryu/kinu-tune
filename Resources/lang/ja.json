@@ -330,6 +330,7 @@
   "midiguide.load_unreadable": "ファイルを開けません",
   "midiguide.guide_track": "ガイドトラック",
   "midiguide.guide_track_none": "使わない",
+  "midiguide.guide_track_unanalysed": "他トラックに解析済みのノートがありません",
   "midiguide.status_track_empty": "そのトラックに解析済みのノートがありません",
   "timing.title": "タイミング補正",
   "timing.mode": "合わせる先",

@@ -332,6 +332,7 @@
   "midiguide.load_unreadable": "the file could not be read",
   "midiguide.guide_track": "Guide track",
   "midiguide.guide_track_none": "None",
+  "midiguide.guide_track_unanalysed": "No analysed notes on another track",
   "midiguide.status_track_empty": "That track has no analysed notes",
   "timing.title": "Timing Correction",
   "timing.mode": "Align to",

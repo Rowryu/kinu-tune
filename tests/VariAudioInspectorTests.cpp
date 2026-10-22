@@ -5,6 +5,7 @@
 #include "../Source/Audio/ResampledLoopAudition.h"
 #include "../Source/UI/PianoRollComponent.h"
 #include "../Source/UI/VariAudioInspector.h"
+#include "../Source/UI/MidiGuidePanel.h"
 #include "../Source/Undo/PitchUndoManager.h"
 #include "../Source/Utils/PitchMacroScope.h"
 #include "../Source/Utils/HarmonyUtils.h"
@@ -698,6 +699,46 @@ int main()
         f.roll.mouseUp(event(f.roll, {xFor(400), yFor(60.0f)}, altLeft, 1));
         f.roll.mouseDoubleClick(event(f.roll, {xFor(400), yFor(60.0f)}, altLeft, 2));
         CHECK(requests == 2);
+    }
+
+    // The guide track menu is rebuilt on demand, and says why it is empty.
+    //
+    // It used to be built once, when the provider was installed, and hidden
+    // whenever it had nothing to offer. A track analysed after the editor
+    // opened therefore never showed up, and the absent row read as "this
+    // build has no guide tracks" rather than "none of them is analysed yet".
+    {
+        std::vector<MainViewTrackEntry> offered;
+        MidiGuidePanel panel;
+        panel.listGuideTracks = [&offered] { return offered; };
+
+        panel.refreshGuideSources();
+        const auto& menu = panel.getGuideTrackMenu();
+        CHECK(menu.isVisible());            // the row stays under ARA
+        CHECK(!menu.isEnabled());           // but there is nothing to pick
+        CHECK(menu.getNumItems() == 1);
+        CHECK(menu.getItemText(0) == TR("midiguide.guide_track_unanalysed"));
+
+        // A track analysed later must appear without reopening the editor.
+        offered.push_back({"track-2", "Guide vox", juce::Colours::grey, false, false});
+        panel.refreshGuideSources();
+        CHECK(menu.isVisible());
+        CHECK(menu.isEnabled());
+        CHECK(menu.getNumItems() == 2);     // "none" plus the track
+        CHECK(menu.getItemText(1) == "Guide vox");
+
+        // And a track that goes away takes its entry with it.
+        offered.clear();
+        panel.refreshGuideSources();
+        CHECK(menu.getNumItems() == 1);
+        CHECK(!menu.isEnabled());
+    }
+
+    // Away from ARA there are no other tracks to read, so the row goes.
+    {
+        MidiGuidePanel panel;
+        panel.refreshGuideSources();
+        CHECK(!panel.getGuideTrackMenu().isVisible());
     }
 
     std::cout << "VariAudio inspector tests passed\n";

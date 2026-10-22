@@ -4002,6 +4002,14 @@ void MainComponent::updateTrackList(
     const std::vector<MainViewTrackEntry> &tracks,
     const juce::String &activeKey) {
   trackListPanel.setTracks(tracks, activeKey);
+
+  // This is the one moment the set of tracks is known to have changed, which
+  // is when MidiGuidePanel::refreshGuideSources() says it must be called.
+  // Nothing was calling it, so the guide track menu was built once when the
+  // editor opened and never again: a track analysed, added or pinned after
+  // that never appeared in it, and with no track to offer the menu hides
+  // itself, so the card looked like it had no such feature.
+  variAudioInspector.getMidiGuidePanel().refreshGuideSources();
 }
 
 void MainComponent::setHostTransportControlAvailable(bool available)

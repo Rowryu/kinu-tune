@@ -277,8 +277,23 @@ void MidiGuidePanel::refreshGuideTrackMenu()
     }
 
     guideTrackBox.setSelectedId(wanted, juce::dontSendNotification);
-    guideTrackLabel.setVisible(!guideTrackOptions.empty());
-    guideTrackBox.setVisible(!guideTrackOptions.empty());
+
+    // Under ARA the row stays even with nothing to offer. A control that
+    // disappears reads as "this build cannot do that", and the actual reason
+    // a track is missing - the plug-in has not analysed it yet - is not
+    // something the user can guess from an absence. Outside ARA there is no
+    // track guide at all, so the row goes.
+    const bool underAra = listGuideTracks != nullptr;
+    const bool haveTracks = !guideTrackOptions.empty();
+    if (underAra && !haveTracks)
+    {
+        guideTrackBox.clear(juce::dontSendNotification);
+        guideTrackBox.addItem(TR("midiguide.guide_track_unanalysed"), 1);
+        guideTrackBox.setSelectedId(1, juce::dontSendNotification);
+    }
+    guideTrackBox.setEnabled(haveTracks);
+    guideTrackLabel.setVisible(underAra);
+    guideTrackBox.setVisible(underAra);
 }
 
 void MidiGuidePanel::adoptTrackGuide()

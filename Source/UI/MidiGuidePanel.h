@@ -82,6 +82,11 @@ public:
         return activeGuideNotes();
     }
 
+    /// The guide track menu, read-only. Exposed so a test can check when the
+    /// card offers one and what it says when it cannot; nothing else should
+    /// reach in here.
+    const juce::ComboBox& getGuideTrackMenu() const { return guideTrackBox; }
+
 private:
     void timerCallback() override;
     void chooseFile();
