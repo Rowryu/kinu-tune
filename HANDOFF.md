@@ -197,3 +197,20 @@
 **アダプタが無ければプラグイン側が自動で CPU に戻すので、外れても壊れない。**
 
 GPU は **NVIDIA GeForce GTX 1650**（OBS のログ `%APPDATA%\obs-studio\logs` で確認）。単体の非 Intel・非内蔵アダプタなので、`defaultSynthesisEngineType()` の `vocoderCapable` も `hasGpuInference()` も真になる条件を満たしている。つまり AI リシンセシス + DirectML で動くはずの構成。
+
+## 12. ガイドトラックが選べない件（2026-10-22 午前）
+
+りゅうさんの報告: 「ガイドトラックにピンをさしましたがガイドになりません」。
+
+**ピンとガイドは別の機能。** ピン(`d6a42c9`)はそのトラックのピッチカーブを薄く描くだけ。ガイドは MIDI ガイドカードの「ガイドトラック」メニューで選ぶ。候補になるのは `listGuideTrackCandidates()` の条件、**アクティブでない ARA トラックのうち Kisyo Tune が解析済みでノートを持つもの**だけで、ピンを刺しても解析はされない。
+
+そのうえでバグが2つあった(`2a2c928` で修正、CI run 39712598471 通過)。
+
+1. **メニューが一度しか作られない。** `MidiGuidePanel::refreshGuideSources()` のコメントは「トラックの顔ぶれが変わるたびに呼ばれる」と書いているが、呼んでいるのは `setHostBpmProvider` と `setGuideTrackProvider` の2か所だけで、どちらもエディタ構築時の1回きり。後から解析・追加・ピンしたトラックは永久に出てこない。→ `MainComponent::updateTrackList()` から呼ぶようにした
+2. **候補0件で行ごと消える。** 「古い」ではなく「そんな機能は無い」に見えていた。→ ARA 下では行を残し、`midiguide.guide_track_unanalysed`（「他トラックに解析済みのノートがありません」）を出す
+
+**修正前のビルドでの回避策**: ガイドにするトラックを一度アクティブにして解析させる → メインに戻る → **Kisyo Tune のウィンドウを閉じて開き直す**（1 のため再構築が必要）。
+
+回帰テストは `VariAudioInspectorTests` に追加した。`MidiGuidePanel::getGuideTrackMenu()` はそのために足した読み取り専用のアクセサ。
+
+**未検証**: DAW で実際にピン→解析→メニュー出現まで通していない。
