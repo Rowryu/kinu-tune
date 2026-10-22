@@ -329,6 +329,7 @@
   "midiguide.status_corrected": "{total} 音のうち {matched} 音が対応し、{corrected} 音を補正しました",
   "midiguide.load_unreadable": "ファイルを開けません",
   "midiguide.guide_track": "ガイドトラック",
+  "midiguide.snap_guide": "ガイドの音程を半音に丸める",
   "midiguide.guide_track_none": "使わない",
   "midiguide.guide_track_unanalysed": "他トラックに解析済みのノートがありません",
   "midiguide.track_unreadable": "（ノートを読めません）",

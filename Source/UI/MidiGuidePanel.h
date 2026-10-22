@@ -142,6 +142,7 @@ private:
 
     juce::Label strengthLabel;
     StyledSlider strengthSlider;
+    juce::ToggleButton snapGuideToggle;
     juce::Label maxShiftLabel;
     StyledSlider maxShiftSlider;
 

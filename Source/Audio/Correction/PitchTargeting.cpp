@@ -37,7 +37,11 @@ std::vector<PitchTargetResult> computePitchTargets(
         if (match.guideIndex >= static_cast<int>(guide.size()))
             continue;
 
-        const float target = guide[static_cast<size_t>(match.guideIndex)].midiNote;
+        const float guideMidi =
+            guide[static_cast<size_t>(match.guideIndex)].midiNote;
+        const float target = params.snapGuideToSemitones
+                                 ? std::round(guideMidi)
+                                 : guideMidi;
         const float fullShift = target - sung[i].midiNote;
 
         // Strength is the user's intent; confidence is how much the match

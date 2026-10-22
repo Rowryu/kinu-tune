@@ -24,6 +24,7 @@ constexpr int kRowHeight = 22;
 constexpr int kLabelHeight = 16;
 constexpr int kButtonHeight = 24;
 constexpr int kStatusRowHeight = 30;
+constexpr int kToggleHeight = 22;
 
 // Section label, load row, file name, track label + menu, three placement
 // rows, two setting rows, apply button, status.
@@ -35,6 +36,7 @@ constexpr int kPreferredHeight =
     kLabelledRow + kRowGap +            // midi file track
     (kLabelledRow + kRowGap) * 3 +      // project bpm, midi bpm, offset
     (kLabelledRow + kRowGap) * 2 +      // strength, max shift
+    kToggleHeight + kRowGap +           // snap the guide to semitones
     kButtonHeight + kRowGap + kStatusRowHeight;
 
 void styleCaption(juce::Label& label)
@@ -154,6 +156,11 @@ MidiGuidePanel::MidiGuidePanel()
     addAndMakeVisible(maxShiftLabel);
     addAndMakeVisible(maxShiftSlider);
 
+    // On by default, and a no-op for a MIDI guide: only a sung guide has
+    // tuning of its own to copy.
+    snapGuideToggle.setToggleState(true, juce::dontSendNotification);
+    addAndMakeVisible(snapGuideToggle);
+
     styleButton(applyButton);
     applyButton.onClick = [this] { runCorrection(); };
     addAndMakeVisible(applyButton);
@@ -198,6 +205,7 @@ void MidiGuidePanel::refreshLocalisedText()
 {
     sectionLabel.setText(TR("midiguide.title"), juce::dontSendNotification);
     guideTrackLabel.setText(TR("midiguide.guide_track"), juce::dontSendNotification);
+    snapGuideToggle.setButtonText(TR("midiguide.snap_guide"));
     loadButton.setButtonText(TR("midiguide.load"));
     trackLabel.setText(TR("midiguide.track"), juce::dontSendNotification);
     projectBpmLabel.setText(TR("midiguide.project_bpm"), juce::dontSendNotification);
@@ -527,6 +535,7 @@ void MidiGuidePanel::runCorrection()
     correction::PitchTargetParams params;
     params.correctionStrength = static_cast<float>(strengthSlider.getValue());
     params.maxShiftSemitones = static_cast<float>(maxShiftSlider.getValue());
+    params.snapGuideToSemitones = snapGuideToggle.getToggleState();
 
     const auto report = onCorrectionRequested(activeGuideNotes(), params);
 
@@ -600,6 +609,8 @@ void MidiGuidePanel::resized()
     labelled(strengthLabel, strengthSlider);
     labelled(maxShiftLabel, maxShiftSlider);
 
+    snapGuideToggle.setBounds(bounds.removeFromTop(kToggleHeight));
+    bounds.removeFromTop(kRowGap);
     applyButton.setBounds(bounds.removeFromTop(kButtonHeight));
     bounds.removeFromTop(kRowGap);
     statusLabel.setBounds(bounds.removeFromTop(kStatusRowHeight));

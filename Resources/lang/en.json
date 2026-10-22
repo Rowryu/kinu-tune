@@ -331,6 +331,7 @@
   "midiguide.status_corrected": "Corrected {corrected} of {matched} matched notes ({total} total)",
   "midiguide.load_unreadable": "the file could not be read",
   "midiguide.guide_track": "Guide track",
+  "midiguide.snap_guide": "Round the guide to semitones",
   "midiguide.guide_track_none": "None",
   "midiguide.guide_track_unanalysed": "No analysed notes on another track",
   "midiguide.track_unreadable": "(notes unreadable)",

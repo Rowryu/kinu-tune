@@ -43,6 +43,20 @@ struct PitchTargetParams
     /// re-rendered for it, and correcting a whole take therefore re-renders
     /// the whole take whether or not it needed the help.
     float minShiftSemitones = 0.03f;
+
+    /// Round the guide's note centre to the nearest semitone before aiming
+    /// at it.
+    ///
+    /// A guide read from a MIDI file is already on exact semitones, so this
+    /// changes nothing there. A guide read from another singer's track is
+    /// not: its note centres carry that singer's own intonation, a few tens
+    /// of cents sharp or flat, note by note. Aiming at them copies another
+    /// person's tuning errors onto this take - the take is "corrected" to
+    /// something that is itself out of tune - and the moves are larger than
+    /// they need to be, so more notes clear the dead band and more of the
+    /// take is re-rendered for it. The melody is what a sung guide is for;
+    /// its tuning is not.
+    bool snapGuideToSemitones = true;
 };
 
 /// What the correction decided for one sung note.

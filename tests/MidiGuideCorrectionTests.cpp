@@ -292,6 +292,56 @@ void testInaudibleShiftsAreNotMade()
     check(unbanded[0].corrected, "with no dead band the tiny move is made");
 }
 
+void testGuideTuningIsNotCopied()
+{
+    std::printf("a sung guide's own tuning is not copied onto the take\n");
+
+    // The guide singer sits 40 cents sharp of the note; this take is 10 cents
+    // flat of it. Following the guide's centre would pull the take half a
+    // semitone sharp - onto another person's mistake - and the bigger move
+    // costs a re-render that a 10-cent note did not need.
+    const std::vector<SungNote> sung = {sungNote(0, 1, 59.9f)};
+    const std::vector<GuideNote> guide = {guideNote(0, 1, 60.4f)};
+    const auto matches = alignNotesToGuide(sung, guide);
+
+    PitchTargetParams snapped;
+    snapped.correctionStrength = 1.0f;
+    const auto a = computePitchTargets(sung, guide, matches, snapped);
+    checkNear(a[0].correctedMidiNote, 60.0f, 0.05f,
+              "the note lands on the semitone, not on the guide's sharpness");
+
+    PitchTargetParams raw = snapped;
+    raw.snapGuideToSemitones = false;
+    const auto b = computePitchTargets(sung, guide, matches, raw);
+    // Confidence keeps it a little short of the guide, as elsewhere, but it
+    // is plainly chasing the guide's 40 cents rather than the semitone.
+    check(b[0].correctedMidiNote > 60.25f,
+          "turning it off follows the guide's own tuning");
+
+    check(std::abs(a[0].appliedShiftSemitones) <
+              std::abs(b[0].appliedShiftSemitones),
+          "and it is the smaller move, so less of the take is re-rendered");
+}
+
+void testMidiGuideIsUnaffectedBySnapping()
+{
+    std::printf("a MIDI guide is already on semitones, so snapping is a no-op\n");
+
+    const std::vector<SungNote> sung = {sungNote(0, 1, 59.7f)};
+    const std::vector<GuideNote> guide = {guideNote(0, 1, 60.0f)};
+    const auto matches = alignNotesToGuide(sung, guide);
+
+    PitchTargetParams on;
+    on.correctionStrength = 1.0f;
+    PitchTargetParams off = on;
+    off.snapGuideToSemitones = false;
+
+    const auto a = computePitchTargets(sung, guide, matches, on);
+    const auto b = computePitchTargets(sung, guide, matches, off);
+    checkNear(a[0].correctedMidiNote, b[0].correctedMidiNote, 1e-6f,
+              "same answer either way");
+}
+
 void testShortAndLongNotes()
 {
     std::printf("note length does not change the decision\n");
@@ -335,6 +385,8 @@ int main()
     testUnmatchedNotesAreUntouched();
     testInaudibleShiftsAreNotMade();
     testShortAndLongNotes();
+    testGuideTuningIsNotCopied();
+    testMidiGuideIsUnaffectedBySnapping();
 
     std::printf("\n%d checks, %d failures\n", checks, failures);
     return failures == 0 ? 0 : 1;
