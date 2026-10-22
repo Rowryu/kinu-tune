@@ -98,13 +98,83 @@ int findEnergyPeakFrame(const std::vector<float>& rms,
     return count > 0 ? static_cast<int>(sum / count) : midpoint;
 }
 
+int findPitchSettleFrame(const std::vector<float>& midiPitch,
+                         int startFrame,
+                         int endFrame,
+                         float noteMidi,
+                         float toleranceSemitones)
+{
+    const int n = static_cast<int>(midiPitch.size());
+    const int from = std::clamp(startFrame, 0, n);
+    const int to = std::clamp(endFrame, from, n);
+    if (to - from < 2)
+        return -1;
+
+    // The longest run, not the first: a scoop passes through the note on its
+    // way up and would otherwise claim the note's position.
+    int bestStart = -1;
+    int bestLength = 0;
+    int runStart = -1;
+
+    for (int i = from; i <= to; ++i)
+    {
+        const bool settled =
+            i < to && midiPitch[static_cast<size_t>(i)] > 0.0f &&
+            std::abs(midiPitch[static_cast<size_t>(i)] - noteMidi) <=
+                toleranceSemitones;
+
+        if (settled)
+        {
+            if (runStart < 0)
+                runStart = i;
+            continue;
+        }
+
+        if (runStart >= 0)
+        {
+            const int length = i - runStart;
+            if (length > bestLength)
+            {
+                bestLength = length;
+                bestStart = runStart;
+            }
+            runStart = -1;
+        }
+    }
+
+    if (bestLength <= 0)
+        return -1;
+    return bestStart + bestLength / 2;
+}
+
 int anchorFrameFor(const std::vector<float>& rms,
                    int startFrame,
                    int endFrame,
                    TimingAnchor anchor)
 {
+    return anchorFrameFor(rms, {}, startFrame, endFrame, 0.0f, anchor);
+}
+
+int anchorFrameFor(const std::vector<float>& rms,
+                   const std::vector<float>& midiPitch,
+                   int startFrame,
+                   int endFrame,
+                   float noteMidi,
+                   TimingAnchor anchor)
+{
     if (anchor == TimingAnchor::NoteStart)
         return startFrame;
+
+    if (anchor == TimingAnchor::PitchCentre)
+    {
+        const int settled =
+            findPitchSettleFrame(midiPitch, startFrame, endFrame, noteMidi);
+        if (settled >= 0)
+            return settled;
+        // No settled pitch: an unvoiced note, or one the detector lost. The
+        // energy peak is the only thing left to go on.
+    }
+
     return findEnergyPeakFrame(rms, startFrame, endFrame);
 }
 
@@ -131,7 +201,8 @@ std::vector<TimingTarget> gridTimingTargets(
     const std::vector<float>& rms,
     const TimingGrid& grid,
     TimingAnchor anchor,
-    double toleranceFrames)
+    double toleranceFrames,
+    const std::vector<float>& midiPitch)
 {
     std::vector<TimingTarget> targets;
     targets.reserve(notes.size());
@@ -151,8 +222,9 @@ std::vector<TimingTarget> gridTimingTargets(
             continue;
         }
 
-        const int anchorFrame =
-            anchorFrameFor(rms, note.startFrame, note.endFrame, anchor);
+        const int anchorFrame = anchorFrameFor(
+            rms, midiPitch, note.startFrame, note.endFrame, note.midiNote,
+            anchor);
         const double snapped = grid.snap(static_cast<double>(anchorFrame));
         const double shift = snapped - static_cast<double>(anchorFrame);
 
@@ -180,7 +252,9 @@ std::vector<TimingTarget> guidedTimingTargets(
     const std::vector<NoteMatch>& matches,
     const std::vector<float>& rms,
     const std::vector<float>& guideRms,
-    TimingAnchor anchor)
+    TimingAnchor anchor,
+    const std::vector<float>& midiPitch,
+    const std::vector<float>& guideMidiPitch)
 {
     std::vector<TimingTarget> targets;
     targets.reserve(notes.size());
@@ -204,16 +278,18 @@ std::vector<TimingTarget> guidedTimingTargets(
         const auto& guideNote = guide[static_cast<size_t>(matches[i].guideIndex)];
 
         const int sungAnchor =
-            anchorFrameFor(rms, note.startFrame, note.endFrame, anchor);
+            anchorFrameFor(rms, midiPitch, note.startFrame, note.endFrame,
+                           note.midiNote, anchor);
 
         // A guide with no audio behind it (a MIDI file) can only be anchored
         // at its start. Using a peak on one side and a start on the other
         // would build the consonant delay into every correction.
         const int guideAnchor =
-            guideRms.empty()
+            guideRms.empty() && guideMidiPitch.empty()
                 ? guideNote.startFrame
-                : anchorFrameFor(guideRms, guideNote.startFrame,
-                                 guideNote.endFrame, anchor);
+                : anchorFrameFor(guideRms, guideMidiPitch,
+                                 guideNote.startFrame, guideNote.endFrame,
+                                 guideNote.midiNote, anchor);
 
         const double shift =
             static_cast<double>(guideAnchor) - static_cast<double>(sungAnchor);

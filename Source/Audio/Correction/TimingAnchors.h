@@ -29,6 +29,17 @@ enum class TimingAnchor
     /// the consonant begins. This is what "line the peak up with the grid"
     /// asks for.
     EnergyPeak,
+
+    /// The middle of the stretch where the pitch sits on the note.
+    ///
+    /// Energy is a poor clock for a sung line: sibilance and breath are loud
+    /// and carry no pitch, so a peak can land on an "s" or on a breath before
+    /// the note. The pitch does not do that - it arrives when the vowel does
+    /// and stays while the note is held - so the middle of that stretch is a
+    /// steadier description of where the note is than the loudest moment.
+    /// Falls back to the energy peak for a note with no settled pitch, which
+    /// is what an unvoiced one is.
+    PitchCentre,
 };
 
 /// Per-frame loudness of the take, on the analysis frame grid.
@@ -51,10 +62,33 @@ int findEnergyPeakFrame(const std::vector<float>& rms,
                         int startFrame,
                         int endFrame);
 
+/**
+ * The middle of the longest run of frames whose pitch is within
+ * `toleranceSemitones` of `noteMidi`, or -1 when the note never settles.
+ *
+ * `midiPitch` is per-frame pitch in MIDI numbers with zero where the frame is
+ * unvoiced, which is what makes this immune to consonants and breath: they
+ * are not voiced, so they are not in any run.
+ */
+int findPitchSettleFrame(const std::vector<float>& midiPitch,
+                         int startFrame,
+                         int endFrame,
+                         float noteMidi,
+                         float toleranceSemitones = 1.0f);
+
 /// Anchor frame of a note under the chosen rule.
 int anchorFrameFor(const std::vector<float>& rms,
                    int startFrame,
                    int endFrame,
+                   TimingAnchor anchor);
+
+/// As above, with the pitch track available. PitchCentre needs it; the other
+/// rules ignore it, and so does this one when the note never settles.
+int anchorFrameFor(const std::vector<float>& rms,
+                   const std::vector<float>& midiPitch,
+                   int startFrame,
+                   int endFrame,
+                   float noteMidi,
                    TimingAnchor anchor);
 
 /// A musical grid: where the beats are, in frames.
@@ -86,7 +120,8 @@ std::vector<TimingTarget> gridTimingTargets(
     const std::vector<float>& rms,
     const TimingGrid& grid,
     TimingAnchor anchor = TimingAnchor::EnergyPeak,
-    double toleranceFrames = 2.0);
+    double toleranceFrames = 2.0,
+    const std::vector<float>& midiPitch = {});
 
 /**
  * Timing targets that line each sung note up with the guide note it was
@@ -104,6 +139,8 @@ std::vector<TimingTarget> guidedTimingTargets(
     const std::vector<NoteMatch>& matches,
     const std::vector<float>& rms,
     const std::vector<float>& guideRms,
-    TimingAnchor anchor = TimingAnchor::EnergyPeak);
+    TimingAnchor anchor = TimingAnchor::EnergyPeak,
+    const std::vector<float>& midiPitch = {},
+    const std::vector<float>& guideMidiPitch = {});
 
 } // namespace correction

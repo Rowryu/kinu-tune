@@ -46,6 +46,30 @@ std::vector<float> projectRms(const Project& project)
     return framewiseRms(mono, HOP_SIZE);
 }
 
+/// Per-frame sung pitch in MIDI numbers, zero where the frame is unvoiced.
+///
+/// basePitch carries the note's centre and deltaPitch the inflection on top
+/// of it, so their sum is what was actually sung. f0 decides voicing: a frame
+/// with no detected pitch is a consonant or a breath, and giving it a number
+/// would let exactly the sounds this is meant to ignore back in.
+std::vector<float> projectMidiPitch(const Project& project)
+{
+    const auto& audio = project.getAudioData();
+    const auto frames = audio.basePitch.size();
+    if (frames == 0)
+        return {};
+
+    std::vector<float> midi(frames, 0.0f);
+    for (size_t i = 0; i < frames; ++i)
+    {
+        if (i < audio.f0.size() && audio.f0[i] <= 0.0f)
+            continue;
+        const float delta = i < audio.deltaPitch.size() ? audio.deltaPitch[i] : 0.0f;
+        midi[i] = audio.basePitch[i] + delta;
+    }
+    return midi;
+}
+
 } // namespace
 
 TimingReport planTimingCorrection(const Project& project,
@@ -83,6 +107,7 @@ TimingReport planTimingCorrection(const Project& project,
         return report;
 
     const auto rms = projectRms(project);
+    const auto midiPitch = projectMidiPitch(project);
 
     std::vector<TimingTarget> targets;
     if (params.mode == TimingMode::Guide)
@@ -98,12 +123,12 @@ TimingReport planTimingCorrection(const Project& project,
         // A MIDI guide has no audio, so guidedTimingTargets anchors both
         // sides on note starts; a track guide would pass its own RMS here.
         targets = guidedTimingTargets(sung, guide, matches, rms, {},
-                                      params.anchor);
+                                      params.anchor, midiPitch, {});
     }
     else
     {
         targets = gridTimingTargets(sung, rms, params.grid, params.anchor,
-                                    params.gridToleranceFrames);
+                                    params.gridToleranceFrames, midiPitch);
     }
 
     const int frameCount = project.getAudioData().getNumFrames();

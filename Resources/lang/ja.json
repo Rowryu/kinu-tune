@@ -346,7 +346,7 @@
   "timing.max_shift": "最大の移動量(秒)",
   "timing.tolerance": "この範囲内は動かさない(最大ズレの%)",
   "timing.note_length": "音の長さも合わせる",
-  "timing.anchor_peak": "音の山で合わせる(推奨)",
+  "timing.anchor_peak": "ピッチの出ている所で合わせる(推奨)",
   "timing.apply": "タイミングを補正",
   "timing.status_no_guide": "先に MIDI ガイドを読み込むか、ガイドトラックを選んでください",
   "timing.status_no_tempo": "ホストのテンポが取得できません",

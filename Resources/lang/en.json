@@ -348,7 +348,7 @@
   "timing.max_shift": "Maximum move (seconds)",
   "timing.tolerance": "Leave alone within (% of largest offset)",
   "timing.note_length": "Correct note length too",
-  "timing.anchor_peak": "Align on the note's peak (recommended)",
+  "timing.anchor_peak": "Align where the pitch is (recommended)",
   "timing.apply": "Correct timing",
   "timing.status_no_guide": "Load a MIDI guide or choose a guide track first",
   "timing.status_no_tempo": "No host tempo available",

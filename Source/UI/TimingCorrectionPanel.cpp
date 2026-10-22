@@ -252,8 +252,12 @@ void TimingCorrectionPanel::runCorrection()
 
     correction::TimingCorrectionParams params;
     params.mode = selectedMode();
+    // On means "where the note is", which is read from the pitch: a sung line
+    // is loudest on sibilance and breath, which carry no pitch at all, so the
+    // loudest moment is routinely not the note. The planner falls back to the
+    // energy peak for a note whose pitch never settles.
     params.anchor = anchorToggle.getToggleState()
-                        ? correction::TimingAnchor::EnergyPeak
+                        ? correction::TimingAnchor::PitchCentre
                         : correction::TimingAnchor::NoteStart;
 
     params.timing.framesPerSecond = framesPerSecond();

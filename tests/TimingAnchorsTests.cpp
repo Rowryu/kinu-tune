@@ -317,5 +317,58 @@ int main()
         CHECK(!before[0].hasTarget);              // what the user saw
     }
 
+    // --- pitch is a steadier clock than loudness ---------------------------
+    //
+    // A sung line opening on a sibilant is loudest on the "s", which carries
+    // no pitch at all. Anchoring on energy puts the note where the noise is;
+    // anchoring on pitch puts it where the vowel is.
+    {
+        // Frames 0-11 are a loud "s": energy, no pitch. 12-31 are the vowel,
+        // quieter, sitting on the note.
+        std::vector<float> rms(40, 0.0f);
+        std::vector<float> midi(40, 0.0f);
+        for (int i = 0; i < 12; ++i) rms[static_cast<size_t>(i)] = 0.9f;
+        for (int i = 12; i < 32; ++i)
+        {
+            rms[static_cast<size_t>(i)] = 0.4f;
+            midi[static_cast<size_t>(i)] = 60.0f;
+        }
+
+        const int byEnergy =
+            anchorFrameFor(rms, 0, 32, TimingAnchor::EnergyPeak);
+        const int byPitch = anchorFrameFor(rms, midi, 0, 32, 60.0f,
+                                           TimingAnchor::PitchCentre);
+
+        CHECK(byEnergy < 12);      // on the consonant
+        CHECK(byPitch >= 12);      // on the vowel
+        CHECK(byPitch > byEnergy);
+    }
+
+    // --- a scoop does not claim the note -----------------------------------
+    //
+    // The pitch passes through the note on its way up. The longest settled
+    // run is the held part, not the moment the scoop crosses it.
+    {
+        std::vector<float> rms(40, 0.5f);
+        std::vector<float> midi(40, 0.0f);
+        midi[5] = 59.5f;   // on the way up, inside the tolerance
+        midi[6] = 61.5f;   // past it
+        for (int i = 14; i < 34; ++i) midi[static_cast<size_t>(i)] = 60.0f;
+
+        const int f = findPitchSettleFrame(midi, 0, 40, 60.0f);
+        CHECK(f >= 14 && f < 34);
+    }
+
+    // --- an unvoiced note falls back to energy -----------------------------
+    {
+        const auto rms = syllable(40, 4, 3, 6);
+        const std::vector<float> noPitch(40, 0.0f);
+
+        CHECK(findPitchSettleFrame(noPitch, 4, 13, 60.0f) == -1);
+        CHECK(anchorFrameFor(rms, noPitch, 4, 13, 60.0f,
+                             TimingAnchor::PitchCentre) ==
+              anchorFrameFor(rms, 4, 13, TimingAnchor::EnergyPeak));
+    }
+
     std::cout << "Timing anchor tests passed\n";
 }
