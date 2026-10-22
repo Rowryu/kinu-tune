@@ -15,6 +15,13 @@
 namespace correction
 {
 
+/// Per-frame sung pitch of a project in MIDI numbers, zero where unvoiced.
+///
+/// Shared so a guide track's anchors are found exactly the way the take's
+/// are. Two different answers to "where is this note" on the two sides of a
+/// correction is the whole problem the anchor is there to avoid.
+std::vector<float> projectMidiPitch(const Project& project);
+
 /// How the targets are chosen.
 enum class TimingMode
 {

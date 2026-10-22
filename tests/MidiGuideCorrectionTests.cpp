@@ -342,6 +342,54 @@ void testMidiGuideIsUnaffectedBySnapping()
               "same answer either way");
 }
 
+void testFullStrengthReachesTheGuide()
+{
+    std::printf("full strength lands on the guide, not four fifths of the way\n");
+
+    const std::vector<SungNote> sung = {sungNote(0, 1, 59.5f)};
+    const std::vector<GuideNote> guide = {guideNote(0, 1, 60.0f)};
+    auto matches = alignNotesToGuide(sung, guide);
+    // Alignment on real material averages about this.
+    matches[0].confidence = 0.8f;
+
+    PitchTargetParams params;
+    params.correctionStrength = 1.0f;
+    const auto targets = computePitchTargets(sung, guide, matches, params);
+
+    checkNear(targets[0].correctedMidiNote, 60.0f, 1e-4f,
+              "a believed match goes all the way");
+
+    // Half strength is still half, so the dial still means what it says.
+    PitchTargetParams half = params;
+    half.correctionStrength = 0.5f;
+    const auto halfTargets = computePitchTargets(sung, guide, matches, half);
+    checkNear(halfTargets[0].correctedMidiNote, 59.75f, 1e-4f,
+              "and strength still scales it");
+}
+
+void testDoubtfulMatchesAreStillHeldBack()
+{
+    std::printf("a doubtful match is still only nudged\n");
+
+    const std::vector<SungNote> sung = {sungNote(0, 1, 59.5f)};
+    const std::vector<GuideNote> guide = {guideNote(0, 1, 60.0f)};
+    auto matches = alignNotesToGuide(sung, guide);
+
+    PitchTargetParams params;
+    params.correctionStrength = 1.0f;
+
+    // Just above the floor: almost none of the move is earned.
+    matches[0].confidence = 0.3f;
+    const auto weak = computePitchTargets(sung, guide, matches, params);
+
+    matches[0].confidence = 0.9f;
+    const auto strong = computePitchTargets(sung, guide, matches, params);
+
+    check(std::abs(weak[0].appliedShiftSemitones) <
+              std::abs(strong[0].appliedShiftSemitones) * 0.5f,
+          "a doubtful match moves much less than a believed one");
+}
+
 void testShortAndLongNotes()
 {
     std::printf("note length does not change the decision\n");
@@ -387,6 +435,8 @@ int main()
     testShortAndLongNotes();
     testGuideTuningIsNotCopied();
     testMidiGuideIsUnaffectedBySnapping();
+    testFullStrengthReachesTheGuide();
+    testDoubtfulMatchesAreStillHeldBack();
 
     std::printf("\n%d checks, %d failures\n", checks, failures);
     return failures == 0 ? 0 : 1;

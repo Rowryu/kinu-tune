@@ -44,9 +44,17 @@ std::vector<PitchTargetResult> computePitchTargets(
                                  : guideMidi;
         const float fullShift = target - sung[i].midiNote;
 
-        // Strength is the user's intent; confidence is how much the match
-        // earns it. Both scale the move before the ceiling clamps it.
-        float shift = fullShift * strength * std::clamp(match.confidence, 0.0f, 1.0f);
+        // Strength is the user's intent; confidence only holds it back while
+        // the match is still doubtful, and gets out of the way once it is
+        // not. Scaling by raw confidence all the way up made a confident
+        // match land short for no reason anyone could see or change.
+        const float span = params.trustedConfidence - params.minConfidence;
+        const float trust =
+            span > 0.0f
+                ? std::clamp((match.confidence - params.minConfidence) / span,
+                             0.0f, 1.0f)
+                : 1.0f;
+        float shift = fullShift * strength * trust;
         shift = std::clamp(shift, -ceiling, ceiling);
 
         // Below the dead band the note is left exactly as it was sung,

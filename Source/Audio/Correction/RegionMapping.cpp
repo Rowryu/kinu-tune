@@ -81,6 +81,15 @@ std::vector<GuideNote> guideNotesFromTrack(
             mapped.endFrame = mapped.startFrame + 1;
         mapped.midiNote = note.midiNote;
 
+        // The anchor is a position in the same frames as the start and end,
+        // so it travels the same way.
+        if (note.anchorFrame >= 0)
+        {
+            const double anchor = mapFrameBetweenRegions(
+                static_cast<double>(note.anchorFrame), from, to);
+            mapped.anchorFrame = static_cast<int>(std::lround(anchor));
+        }
+
         result.push_back(mapped);
     }
 

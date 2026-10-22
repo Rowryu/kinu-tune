@@ -2,6 +2,8 @@
 #include "HostCompatibility.h"
 #include "../Models/Project.h"
 #include "../Audio/Correction/RegionMapping.h"
+#include "../Audio/Correction/TimingAnchors.h"
+#include "../Audio/Correction/TimingCorrection.h"
 #include "../Utils/AppLogger.h"
 #include "../Utils/Constants.h"
 #include "../Undo/ContextUndoAction.h"
@@ -829,6 +831,12 @@ PitchNetAudioProcessorEditor::buildGuideFromTrack(const juce::String &trackKey) 
     if (guideProject == nullptr)
       continue;
 
+    // Where each guide note is timed, read from the guide's own audio the
+    // same way the take's notes are. Timing lines an anchor up with an
+    // anchor; finding one side from the audio and taking the other from a
+    // note start puts the consonant between them into every correction.
+    const auto guidePitch = correction::projectMidiPitch(*guideProject);
+
     std::vector<correction::GuideNote> notes;
     notes.reserve(guideProject->getNotes().size());
     for (const auto &note : guideProject->getNotes()) {
@@ -840,6 +848,8 @@ PitchNetAudioProcessorEditor::buildGuideFromTrack(const juce::String &trackKey) 
       // The guide's own corrections count: a tuned guide should guide to
       // where it now sits, not to where it was sung.
       g.midiNote = note.getMidiNote();
+      g.anchorFrame = correction::findPitchSettleFrame(
+          guidePitch, g.startFrame, g.endFrame, g.midiNote);
       notes.push_back(g);
     }
 

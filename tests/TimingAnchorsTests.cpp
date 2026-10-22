@@ -370,5 +370,45 @@ int main()
               anchorFrameFor(rms, 4, 13, TimingAnchor::EnergyPeak));
     }
 
+    // --- the guide brings its own anchor ------------------------------------
+    //
+    // Timing lines an anchor up with an anchor. Reading the sung side from
+    // its pitch while the guide side falls back to a note start builds the
+    // distance between them - a consonant and an attack - into every
+    // correction. A guide read from a track carries the anchor its own audio
+    // gave it, and that is what the sung note is lined up with.
+    {
+        // The sung note opens on a consonant: it starts at 0, its pitch
+        // settles around 15.
+        std::vector<float> rms(60, 0.5f);
+        std::vector<float> midi(60, 0.0f);
+        for (int i = 10; i < 22; ++i) midi[static_cast<size_t>(i)] = 60.0f;
+
+        auto sungNote = sung(0, 30);
+        GuideNote g = guide(0, 30);
+        g.anchorFrame = 16;          // where the guide's own vowel landed
+
+        NoteMatch m;
+        m.sungIndex = 0;
+        m.guideIndex = 0;
+        m.confidence = 1.0f;
+
+        const auto withAnchor = guidedTimingTargets(
+            {sungNote}, {g}, {m}, rms, {}, TimingAnchor::PitchCentre, midi, {});
+        CHECK(withAnchor.size() == 1);
+        CHECK(withAnchor[0].hasTarget);
+        // Both sides are vowels, a frame apart, so the note barely moves.
+        CHECK(std::abs(withAnchor[0].targetStartFrame) < 3.0);
+
+        // Without it the guide falls back to its start, and the whole
+        // consonant is pushed into the shift.
+        GuideNote plain = guide(0, 30);
+        const auto withoutAnchor = guidedTimingTargets(
+            {sungNote}, {plain}, {m}, rms, {}, TimingAnchor::PitchCentre,
+            midi, {});
+        CHECK(withoutAnchor[0].hasTarget);
+        CHECK(std::abs(withoutAnchor[0].targetStartFrame) > 10.0);
+    }
+
     std::cout << "Timing anchor tests passed\n";
 }

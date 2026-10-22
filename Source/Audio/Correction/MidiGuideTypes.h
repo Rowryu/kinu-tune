@@ -22,6 +22,17 @@ struct GuideNote
     int endFrame = 0;      ///< exclusive
     float midiNote = 60.0f;
 
+    /// The frame this note is timed by, when the guide had audio to find one
+    /// in. Negative means there was none - a MIDI guide carries no
+    /// performance, so its start is all there is to go on.
+    ///
+    /// It has to travel with the note. Timing lines a sung note's anchor up
+    /// with its guide note's anchor, and reading one side from the audio
+    /// while the other falls back to a note start builds the difference
+    /// between them - a consonant and an attack, 50 to 150 ms of it - into
+    /// every correction.
+    int anchorFrame = -1;
+
     int durationFrames() const { return endFrame - startFrame; }
 };
 

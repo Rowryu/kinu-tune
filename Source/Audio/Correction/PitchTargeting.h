@@ -26,6 +26,19 @@ struct PitchTargetParams
     /// Matches below this confidence are left uncorrected entirely.
     float minConfidence = 0.25f;
 
+    /// At or above this, the match is believed and the user's strength
+    /// decides the move on its own.
+    ///
+    /// Confidence used to scale the move across its whole range, which meant
+    /// it quietly overrode the strength dial: alignment on real material
+    /// averages around 0.8, so "correct all the way" moved a note four
+    /// fifths of the way to the guide and left it a few cents out, every
+    /// note, with no way to ask for more. Confidence is there to stop a
+    /// doubtful match from confidently moving a note to the wrong pitch,
+    /// which only needs it to act near the bottom of its range. Between
+    /// minConfidence and this it ramps in; above it, strength is the dial.
+    float trustedConfidence = 0.6f;
+
     /// Shifts smaller than this are not worth making, in semitones.
     ///
     /// A correction is not free: the note it touches gets re-rendered, and

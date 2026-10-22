@@ -284,12 +284,19 @@ std::vector<TimingTarget> guidedTimingTargets(
         // A guide with no audio behind it (a MIDI file) can only be anchored
         // at its start. Using a peak on one side and a start on the other
         // would build the consonant delay into every correction.
+        // The guide note's own anchor first: a guide read from a track
+        // carries one, worked out from that track's audio when the note was
+        // built. Without it, find one here if there is audio to find it in,
+        // and fall back to the start only for a guide that never had any.
         const int guideAnchor =
-            guideRms.empty() && guideMidiPitch.empty()
-                ? guideNote.startFrame
-                : anchorFrameFor(guideRms, guideMidiPitch,
-                                 guideNote.startFrame, guideNote.endFrame,
-                                 guideNote.midiNote, anchor);
+            guideNote.anchorFrame >= 0
+                ? guideNote.anchorFrame
+                : (guideRms.empty() && guideMidiPitch.empty()
+                       ? guideNote.startFrame
+                       : anchorFrameFor(guideRms, guideMidiPitch,
+                                        guideNote.startFrame,
+                                        guideNote.endFrame,
+                                        guideNote.midiNote, anchor));
 
         const double shift =
             static_cast<double>(guideAnchor) - static_cast<double>(sungAnchor);

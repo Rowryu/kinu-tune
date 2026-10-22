@@ -46,6 +46,8 @@ std::vector<float> projectRms(const Project& project)
     return framewiseRms(mono, HOP_SIZE);
 }
 
+} // namespace
+
 /// Per-frame sung pitch in MIDI numbers, zero where the frame is unvoiced.
 ///
 /// basePitch carries the note's centre and deltaPitch the inflection on top
@@ -70,7 +72,6 @@ std::vector<float> projectMidiPitch(const Project& project)
     return midi;
 }
 
-} // namespace
 
 TimingReport planTimingCorrection(const Project& project,
                                   const std::vector<GuideNote>& guide,
