@@ -181,10 +181,22 @@ void TimingCorrectionPanel::refreshLocalisedText()
 
 void TimingCorrectionPanel::timerCallback()
 {
+    pollForChanges();
+}
+
+void TimingCorrectionPanel::pollForChanges()
+{
     const bool hasProject = currentProject() != nullptr;
-    if (hasProject != hadProject)
+    // The guide belongs to the MIDI guide card, which fills it long after
+    // this one is built - when a file is loaded or a guide track chosen.
+    // Watching only the project meant none of that reached this card: it went
+    // on saying to choose a guide, with Apply disabled, after one was chosen.
+    // The count rather than a flag, so swapping one guide for another counts.
+    const size_t guideCount = getGuideNotes ? getGuideNotes().size() : 0u;
+    if (hasProject != hadProject || guideCount != hadGuideCount)
     {
         hadProject = hasProject;
+        hadGuideCount = guideCount;
         refreshEnablement();
     }
 }

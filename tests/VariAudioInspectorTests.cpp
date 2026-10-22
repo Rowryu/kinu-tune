@@ -6,6 +6,7 @@
 #include "../Source/UI/PianoRollComponent.h"
 #include "../Source/UI/VariAudioInspector.h"
 #include "../Source/UI/MidiGuidePanel.h"
+#include "../Source/UI/TimingCorrectionPanel.h"
 #include "../Source/Undo/PitchUndoManager.h"
 #include "../Source/Utils/PitchMacroScope.h"
 #include "../Source/Utils/HarmonyUtils.h"
@@ -761,6 +762,37 @@ int main()
         MidiGuidePanel panel;
         panel.refreshGuideSources();
         CHECK(!panel.getGuideTrackMenu().isVisible());
+    }
+
+    // The timing card notices a guide arriving.
+    //
+    // Its timer watched only whether a project existed, so a guide chosen in
+    // the other card never reached it: Apply stayed disabled and the card went
+    // on asking for a guide that was already there.
+    {
+        Project project;
+        prepareAudio(project);
+        TimingCorrectionPanel panel;
+        panel.getCurrentProject = [&project] { return &project; };
+
+        std::vector<correction::GuideNote> guide;
+        panel.getGuideNotes = [&guide] { return guide; };
+
+        panel.pollForChanges();
+        CHECK(!panel.getApplyButton().isEnabled());   // no guide yet
+
+        correction::GuideNote note{};
+        note.startFrame = 0;
+        note.endFrame = 10;
+        note.midiNote = 60.0f;
+        guide.push_back(note);
+
+        panel.pollForChanges();
+        CHECK(panel.getApplyButton().isEnabled());    // the guide reached it
+
+        guide.clear();
+        panel.pollForChanges();
+        CHECK(!panel.getApplyButton().isEnabled());   // and leaving is noticed
     }
 
     std::cout << "VariAudio inspector tests passed\n";

@@ -62,6 +62,14 @@ public:
     /// Smooth the glide between notes. Returns how many notes changed.
     std::function<int(const correction::TransitionParams&)> onSmoothingRequested;
 
+    /// Re-read what this card depends on and update it if anything moved.
+    /// The timer calls this; it is public so a test can drive it without a
+    /// message loop.
+    void pollForChanges();
+
+    /// Apply, read-only, for the tests that cover when the card is usable.
+    const juce::TextButton& getApplyButton() const { return applyButton; }
+
 private:
     void timerCallback() override;
     void runCorrection();
@@ -104,6 +112,9 @@ private:
 
     juce::Rectangle<int> cardBounds;
     bool hadProject = false;
+    // The guide arrives from the other card, after this one is built, so
+    // its absence has to be noticed rather than assumed to be permanent.
+    size_t hadGuideCount = 0;
 
     LocalisationWatcher languageWatcher{[this] { refreshLocalisedText(); }};
 
