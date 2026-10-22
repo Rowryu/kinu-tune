@@ -760,15 +760,18 @@ PitchNetAudioProcessorEditor::listGuideTrackCandidates() {
     if (key.isEmpty() || key == activeTrack || seen.count(key) > 0)
       continue;
 
-    // Only offer a track whose notes exist: an unanalysed one would be
-    // chosen and then silently guide nothing.
+    // A track whose notes cannot be read from here is listed and disabled
+    // rather than dropped. Dropping it is indistinguishable from the feature
+    // not existing, which is how a session with three analysed tracks in the
+    // document still showed no guide track menu at all and left nothing to
+    // look at. Listed, the menu says which track it is and that its notes did
+    // not come back.
     std::uint64_t revision = 0;
     bool fromCanvas = false;
     const Project *project = audioProcessor.getAraProjectForPreview(
         region->getAudioModification<PitchNetAudioModification>(), revision,
         fromCanvas);
-    if (project == nullptr || project->getNotes().empty())
-      continue;
+    const bool guideReady = project != nullptr && !project->getNotes().empty();
 
     juce::String name;
     if (sequence != nullptr)
@@ -783,8 +786,13 @@ PitchNetAudioProcessorEditor::listGuideTrackCandidates() {
                             : juce::Colour(kDefaultTrackColour);
 
     seen.insert(key);
-    candidates.push_back({key, name, colour, hasHostColour, false});
+    candidates.push_back({key, name, colour, hasHostColour, false, guideReady});
   }
+
+  LOG("Guide track candidates: " +
+      juce::String(static_cast<int>(candidates.size())) + " of " +
+      juce::String(static_cast<int>(collectDocumentPlaybackRegions().size())) +
+      " document region(s), active track '" + activeTrack + "'");
 
   return candidates;
 }

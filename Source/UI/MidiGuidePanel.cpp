@@ -261,9 +261,15 @@ void MidiGuidePanel::refreshGuideTrackMenu()
         const auto name = track.name.isNotEmpty()
                               ? track.name
                               : TR("midiguide.track_n") + " " + juce::String(i + 1);
-        guideTrackBox.addItem(name, static_cast<int>(i) + 2);
-        if (track.key == previousKey)
-            wanted = static_cast<int>(i) + 2;
+        const int id = static_cast<int>(i) + 2;
+        guideTrackBox.addItem(track.guideReady
+                                  ? name
+                                  : name + " " + TR("midiguide.track_unreadable"),
+                              id);
+        if (!track.guideReady)
+            guideTrackBox.setItemEnabled(id, false);
+        if (track.key == previousKey && track.guideReady)
+            wanted = id;
     }
 
     // A chosen track that is gone (region closed, plug-in removed) must not
@@ -291,6 +297,9 @@ void MidiGuidePanel::refreshGuideTrackMenu()
         guideTrackBox.addItem(TR("midiguide.guide_track_unanalysed"), 1);
         guideTrackBox.setSelectedId(1, juce::dontSendNotification);
     }
+    // Enabled whenever there is a track to look at, even if every one of them
+    // is unreadable: the user has to be able to open the menu and see which
+    // tracks were found and what is wrong with them.
     guideTrackBox.setEnabled(haveTracks);
     guideTrackLabel.setVisible(underAra);
     guideTrackBox.setVisible(underAra);

@@ -46,6 +46,11 @@ struct MainViewTrackEntry {
   juce::Colour colour;        // the DAW's colour; only valid if hasHostColour
   bool hasHostColour = false; // false when the DAW sent no colour via ARA
   bool pinned = false;        // notes drawn on the canvas; never the active track
+  // Guide track menu only: false when the track is in the ARA document but
+  // its notes cannot be read from here, so it is shown and cannot be chosen.
+  // Leaving it out of the list instead is what made a missing track look like
+  // a missing feature.
+  bool guideReady = true;
 };
 
 /** Track colour when the DAW sends none, or "Use DAW Track Color" is off. */

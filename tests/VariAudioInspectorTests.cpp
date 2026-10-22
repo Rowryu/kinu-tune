@@ -727,6 +727,18 @@ int main()
         CHECK(menu.getNumItems() == 2);     // "none" plus the track
         CHECK(menu.getItemText(1) == "Guide vox");
 
+        // A track in the document whose notes cannot be read is listed and
+        // disabled, not dropped: the user has to see that it was found.
+        offered.push_back({"track-3", "Unread vox", juce::Colours::grey, false,
+                           false, false});
+        panel.refreshGuideSources();
+        CHECK(menu.getNumItems() == 3);
+        CHECK(menu.isEnabled());
+        CHECK(menu.getItemText(2).contains("Unread vox"));
+        CHECK(menu.getItemText(2) != "Unread vox");   // carries the reason
+        CHECK(!menu.isItemEnabled(menu.getItemId(2)));
+        CHECK(menu.isItemEnabled(menu.getItemId(1))); // the readable one stays
+
         // And a track that goes away takes its entry with it.
         offered.clear();
         panel.refreshGuideSources();
