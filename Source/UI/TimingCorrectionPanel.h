@@ -70,6 +70,9 @@ public:
     /// Apply, read-only, for the tests that cover when the card is usable.
     const juce::TextButton& getApplyButton() const { return applyButton; }
 
+    /// The status line's text, for those same tests.
+    juce::String getStatusText() const { return statusLabel.getText(); }
+
 private:
     void timerCallback() override;
     void runCorrection();
@@ -115,6 +118,9 @@ private:
     // The guide arrives from the other card, after this one is built, so
     // its absence has to be noticed rather than assumed to be permanent.
     size_t hadGuideCount = 0;
+    // Whether the status line currently holds this card's own "cannot run"
+    // warning, so it can be taken down once that stops being true.
+    bool statusIsNotReady = false;
 
     LocalisationWatcher languageWatcher{[this] { refreshLocalisedText(); }};
 

@@ -790,9 +790,14 @@ int main()
         panel.pollForChanges();
         CHECK(panel.getApplyButton().isEnabled());    // the guide reached it
 
+        // The warning comes down with it, so a ready card does not go on
+        // asking for the guide it already has.
+        CHECK(panel.getStatusText().isEmpty());
+
         guide.clear();
         panel.pollForChanges();
         CHECK(!panel.getApplyButton().isEnabled());   // and leaving is noticed
+        CHECK(panel.getStatusText().isNotEmpty());    // with the reason back
     }
 
     std::cout << "VariAudio inspector tests passed\n";

@@ -219,10 +219,26 @@ void TimingCorrectionPanel::refreshEnablement()
     smoothSlider.setEnabled(haveProject);
     smoothButton.setEnabled(haveProject);
 
-    if (!ready && currentProject() != nullptr)
+    if (currentProject() == nullptr)
+        return;
+
+    if (!ready)
+    {
         showStatus(grid ? TR("timing.status_no_tempo")
                         : TR("timing.status_no_guide"),
                    true);
+        statusIsNotReady = true;
+    }
+    else if (statusIsNotReady)
+    {
+        // The reason this card could not run has gone away. Leaving the line
+        // on screen is what made a working card look broken: the guide track
+        // was chosen, Apply was live, and the warning still said to choose a
+        // guide. Only this card's own warning is cleared - a report from the
+        // last run is left where it is.
+        showStatus({}, false);
+        statusIsNotReady = false;
+    }
 }
 
 void TimingCorrectionPanel::runCorrection()
