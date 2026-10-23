@@ -1322,7 +1322,7 @@ void IncrementalSynthesizer::synthesizeRegion(ProgressCallback onProgress,
   // same span of samples and share this callback verbatim.
   auto onRendered =
       [this, capturedCancelFlag, capturedProject, capturedStartFrame,
-       capturedEndFrame, hopSize, currentJobId, onComplete,
+       capturedEndFrame, hopSize, currentJobId, onComplete, usePsola,
        formantShifts, formantF0, formantSampleRate, hasGlobalFormant,
        hasDirtyNoteAnchors, f0DirtyStart, f0DirtyEnd,
        capturedNoteCount, commitFrameRanges = std::move(commitFrameRanges),
@@ -1347,7 +1347,7 @@ void IncrementalSynthesizer::synthesizeRegion(ProgressCallback onProgress,
 
         std::thread([this, capturedCancelFlag, capturedProject,
                      capturedStartFrame, capturedEndFrame, hopSize,
-                     currentJobId, onComplete, hasDirtyNoteAnchors,
+                     currentJobId, onComplete, usePsola, hasDirtyNoteAnchors,
                      f0DirtyStart, f0DirtyEnd, capturedNoteCount,
                      commitFrameRanges, blendMask, originalSegment,
                      audioMovePatches, formantShifts, formantF0, formantSampleRate, hasGlobalFormant,
@@ -1445,14 +1445,33 @@ void IncrementalSynthesizer::synthesizeRegion(ProgressCallback onProgress,
           }
 
           // Build blended target from model/original.
+          //
+          // Which crossfade law is right depends on how alike the two sides
+          // are, and that is decided by the engine. PSOLA transforms the
+          // original waveform, so its output still correlates with the
+          // original: the two add as amplitudes and a linear fade holds the
+          // level steady. The vocoder regenerates the audio from a mel, so
+          // its phase has nothing to do with the original's: the two add as
+          // powers, and a linear fade loses 3 dB in the middle of every
+          // crossfade while the cancellation sweeps across the spectrum. That
+          // dip is audible at each seam, which is why handing more of the
+          // unvoiced audio back to the recording made the seams worse rather
+          // than better. An equal-power fade keeps sqrt(b)^2 + sqrt(1-b)^2 at
+          // one and removes it.
+          //
+          // Only values strictly between 0 and 1 are affected either way, so
+          // fully synthesized and fully original audio are untouched.
           std::vector<float> targetSegment(samplesToWrite, 0.0f);
           for (int i = 0; i < samplesToWrite; ++i) {
             const float b =
                 (i < static_cast<int>(blendMask.size())) ? blendMask[i] : 0.0f;
             const float synth = synthesizedAudio[static_cast<size_t>(i)];
             const float orig = originalSegment[static_cast<size_t>(i)];
+            const float synthGain = usePsola ? b : std::sqrt(b);
+            const float origGain =
+                usePsola ? (1.0f - b) : std::sqrt(1.0f - b);
             targetSegment[static_cast<size_t>(i)] =
-                b * synth + (1.0f - b) * orig;
+                synthGain * synth + origGain * orig;
           }
 
           // Use the same gain envelope as direct amplitude edits.
