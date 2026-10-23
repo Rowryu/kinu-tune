@@ -762,7 +762,13 @@ PitchNetAudioProcessorEditor::readHostTempoMap() {
   if (region == nullptr)
     return points;
 
-  auto *musicalContext = region->getMusicalContext();
+  // Via the region sequence: that is where JUCE exposes the musical context,
+  // and a region's context is its sequence's anyway.
+  auto *sequence = region->getRegionSequence();
+  if (sequence == nullptr)
+    return points;
+
+  auto *musicalContext = sequence->getMusicalContext();
   if (musicalContext == nullptr)
     return points;
 
