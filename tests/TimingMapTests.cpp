@@ -143,6 +143,11 @@ void testLateOnsetIsPulledEarlier()
     params.correctionStrength = 1.0f;
     params.maxShiftSeconds = 1.0f; // the ceiling has its own test
 
+    // These cases are about whether the note reaches its target, so the rate
+    // ceiling is opened up to keep the two contracts separate; the shipping
+    // default is narrow on purpose and has its own tests.
+    params.minRate = 0.5;
+    params.maxRate = 2.0;
     const auto map = buildTimingMap(notes, kTakeFrames, params);
     assertInvariants(map, params, kTakeFrames, "late onset");
 
@@ -159,6 +164,11 @@ void testEarlyOnsetIsPushedLater()
     params.correctionStrength = 1.0f;
     params.maxShiftSeconds = 1.0f;
 
+    // These cases are about whether the note reaches its target, so the rate
+    // ceiling is opened up to keep the two contracts separate; the shipping
+    // default is narrow on purpose and has its own tests.
+    params.minRate = 0.5;
+    params.maxRate = 2.0;
     const auto map = buildTimingMap(notes, kTakeFrames, params);
     assertInvariants(map, params, kTakeFrames, "early onset");
 
@@ -174,6 +184,11 @@ void testStrengthScalesTheMove()
     TimingParams full;
     full.correctionStrength = 1.0f;
     full.maxShiftSeconds = 1.0f;
+    // About whether strength scales the move, not about the rate ceiling,
+    // so the ceiling is opened up; the narrow shipping default has its own
+    // tests.
+    full.minRate = 0.5;
+    full.maxRate = 2.0;
     TimingParams half = full;
     half.correctionStrength = 0.5f;
 
@@ -213,14 +228,18 @@ void testShortNoteIsLengthened()
     params.correctionStrength = 1.0f;
     params.correctNoteLength = true;
     params.maxShiftSeconds = 2.0f;
+    // The bound under test, set here rather than inherited: the shipping
+    // default is far narrower, because warping a vowel this hard is audible.
+    params.minRate = 0.5;
+    params.maxRate = 2.0;
 
     const auto map = buildTimingMap(notes, kTakeFrames, params);
     assertInvariants(map, params, kTakeFrames, "short note");
 
     const double length = map.noteEnd[0] - map.noteStart[0];
     check(length > 50.0, "the note got longer");
-    // The rate floor caps the stretch at 2x by default, so it cannot reach
-    // 150 frames in one go. That bound is the point, not a shortfall.
+    // The rate floor caps the stretch at 2x here, so it cannot reach 150
+    // frames in one go. That bound is the point, not a shortfall.
     checkNear(length, 100.0, 5.0, "stretched as far as the rate floor allows");
 }
 
@@ -336,6 +355,11 @@ void testAbuttingNotesPullingApart()
     std::vector<TimingTarget> notes = {note(100, 200, 110.0, 210.0),
                                        note(200, 300, 190.0, 290.0)};
 
+    // These cases are about whether the note reaches its target, so the rate
+    // ceiling is opened up to keep the two contracts separate; the shipping
+    // default is narrow on purpose and has its own tests.
+    params.minRate = 0.5;
+    params.maxRate = 2.0;
     const auto map = buildTimingMap(notes, kTakeFrames, params);
     assertInvariants(map, params, kTakeFrames, "abutting notes");
 
@@ -355,6 +379,11 @@ void testAbuttingNotesMovingTogether()
     std::vector<TimingTarget> notes = {note(100, 200, 120.0, 220.0),
                                        note(200, 300, 220.0, 320.0)};
 
+    // These cases are about whether the note reaches its target, so the rate
+    // ceiling is opened up to keep the two contracts separate; the shipping
+    // default is narrow on purpose and has its own tests.
+    params.minRate = 0.5;
+    params.maxRate = 2.0;
     const auto map = buildTimingMap(notes, kTakeFrames, params);
     assertInvariants(map, params, kTakeFrames, "abutting notes, agreeing");
 
@@ -362,6 +391,35 @@ void testAbuttingNotesMovingTogether()
     checkNear(map.noteStart[1], 220.0, 1.0, "so did the second");
     checkNear(map.noteEnd[1] - map.noteStart[1], 100.0, 1.0,
               "and the second kept its length");
+}
+
+// The case the narrow default bounds exist for. Two notes sung legato, the
+// second asked to arrive 50 frames early. Nothing sits between them, so the
+// first note's tail is the only thing that can absorb the move - and at the
+// old bounds it would absorb all of it, compressing a short note by a third.
+void testALegatoNeighbourIsNotWarpedToObey()
+{
+    std::printf("a legato neighbour is not warped to let the next note move\n");
+
+    TimingParams params;
+    params.correctionStrength = 1.0f;
+    params.maxShiftSeconds = 2.0f;
+
+    // 100..200 stays, 200..300 wants to start 50 frames early.
+    const std::vector<TimingTarget> notes = {note(100, 200, 100.0, 200.0),
+                                             note(200, 300, 150.0, 250.0)};
+
+    const auto map = buildTimingMap(notes, kTakeFrames, params);
+    assertInvariants(map, params, kTakeFrames, "legato neighbour");
+
+    // It moves, but only as far as the first note's tail can be compressed
+    // without warping: 100 source frames at the rate ceiling.
+    const double firstLength = map.noteEnd[0] - map.noteStart[0];
+    check(firstLength >= 100.0 / params.maxRate - 1.0,
+          "the first note is not compressed past the ceiling");
+    check(map.noteStart[1] < 200.0, "the second note still moved earlier");
+    check(map.noteStart[1] > 150.0 + 1.0,
+          "but it did not reach a target that would have warped its neighbour");
 }
 
 void testDegenerateInputs()
@@ -403,6 +461,7 @@ int main()
     testFastTempoManyShortNotes();
     testAbuttingNotesPullingApart();
     testAbuttingNotesMovingTogether();
+    testALegatoNeighbourIsNotWarpedToObey();
     testDegenerateInputs();
 
     std::printf("\n%d checks, %d failures\n", checks, failures);

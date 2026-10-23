@@ -44,8 +44,22 @@ struct TimingParams
     /// 2.0 that it may be compressed to at most half. Time stretching is what
     /// costs quality, so this is the control that decides how audible the
     /// correction is, regardless of how far notes are asked to move.
-    double minRate = 0.5;
-    double maxRate = 2.0;
+    ///
+    /// The defaults are deliberately narrow. A sung note moved under a grid
+    /// or a guide is not itself stretched - its start and end shift together
+    /// - so what absorbs the move is whatever sits between it and its
+    /// neighbour. In a legato phrase there is nothing between them, and the
+    /// previous note's tail takes the whole of it: shifting a note 50 ms
+    /// earlier compresses a 150 ms neighbour by a third. At the old bounds
+    /// that was permitted, and it is what "the audio sounds stretched" is.
+    ///
+    /// A sixth either way is about where a stretched vowel stops passing for
+    /// an unstretched one. Past that the map stops short rather than warping
+    /// the audio to obey, which is the trade worth making: a note that lands
+    /// a little late still sounds like singing, and one dragged there does
+    /// not.
+    double minRate = 0.85;
+    double maxRate = 1.18;
 
     /// Matches below this confidence are not moved.
     float minConfidence = 0.25f;
