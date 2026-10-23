@@ -320,6 +320,50 @@ void testFastTempoManyShortNotes()
               "note " + std::to_string(i) + " stays after its predecessor");
 }
 
+// Two notes that touch - the end of one is the start of the next, which is
+// what the note list looks like all through a legato phrase - pulling in
+// opposite directions. One source frame, two wishes. The onset is the
+// audible event, so it is the one that must be honoured; the damage belongs
+// in the tail of the note before it, where nobody hears it.
+void testAbuttingNotesPullingApart()
+{
+    std::printf("abutting notes that disagree still move their onsets\n");
+
+    TimingParams params;
+    params.correctionStrength = 1.0f;
+
+    // 100..200 wants to be 10 frames later, 200..300 ten frames earlier.
+    std::vector<TimingTarget> notes = {note(100, 200, 110.0, 210.0),
+                                       note(200, 300, 190.0, 290.0)};
+
+    const auto map = buildTimingMap(notes, kTakeFrames, params);
+    assertInvariants(map, params, kTakeFrames, "abutting notes");
+
+    checkNear(map.noteStart[0], 110.0, 1.0, "the first onset moved later");
+    checkNear(map.noteStart[1], 190.0, 1.0, "the second onset moved earlier");
+    check(map.noteStart[1] > map.noteStart[0], "order is preserved");
+}
+
+// The same boundary, but both notes agree. Nothing clever should happen.
+void testAbuttingNotesMovingTogether()
+{
+    std::printf("abutting notes that agree move as one\n");
+
+    TimingParams params;
+    params.correctionStrength = 1.0f;
+
+    std::vector<TimingTarget> notes = {note(100, 200, 120.0, 220.0),
+                                       note(200, 300, 220.0, 320.0)};
+
+    const auto map = buildTimingMap(notes, kTakeFrames, params);
+    assertInvariants(map, params, kTakeFrames, "abutting notes, agreeing");
+
+    checkNear(map.noteStart[0], 120.0, 1.0, "the first onset moved");
+    checkNear(map.noteStart[1], 220.0, 1.0, "so did the second");
+    checkNear(map.noteEnd[1] - map.noteStart[1], 100.0, 1.0,
+              "and the second kept its length");
+}
+
 void testDegenerateInputs()
 {
     std::printf("degenerate inputs are handled\n");
@@ -357,6 +401,8 @@ int main()
     testUnmatchedNotesAreNotAnchored();
     testLowConfidenceIsNotMoved();
     testFastTempoManyShortNotes();
+    testAbuttingNotesPullingApart();
+    testAbuttingNotesMovingTogether();
     testDegenerateInputs();
 
     std::printf("\n%d checks, %d failures\n", checks, failures);

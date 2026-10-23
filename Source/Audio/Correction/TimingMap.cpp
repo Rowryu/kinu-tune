@@ -16,6 +16,9 @@ struct Anchor
 {
     double source = 0.0;
     double output = 0.0;
+    /// True for a note's start. Where two anchors land on the same source
+    /// frame the onset is the one that survives; see collapseSharedFrames.
+    bool isOnset = false;
 };
 
 /// How far a note may move, after strength, confidence and the ceiling.
@@ -30,6 +33,51 @@ double allowedShift(double wanted, const TimingParams& params, float confidence)
         (params.framesPerSecond > 0.0 ? params.framesPerSecond : 1.0);
 
     return std::clamp(wanted * strength * trust, -ceilingFrames, ceilingFrames);
+}
+
+/// Fold anchors that share a source frame into one.
+///
+/// The note list is a partition of the take, so all through a legato phrase
+/// the end of one note IS the start of the next: one frame carrying two
+/// wishes. When the two notes move in opposite directions - routine under a
+/// grid, where neighbours round to different lines - those wishes disagree,
+/// and something has to give.
+///
+/// The onset wins. It is the audible event; a note's tail in legato is not
+/// heard as a moment at all, it is heard as the approach to the next onset.
+/// Letting the tail absorb the difference puts the stretching where nobody
+/// listens. The alternative - keeping both anchors a hair apart - is what
+/// this code used to do, and it silently threw the second note's onset away
+/// and squashed the note instead, which is audible on every legato run.
+void collapseSharedFrames(std::vector<Anchor>& anchors)
+{
+    if (anchors.size() < 2)
+        return;
+
+    std::vector<Anchor> kept;
+    kept.reserve(anchors.size());
+
+    for (size_t i = 0; i < anchors.size();)
+    {
+        size_t j = i + 1;
+        while (j < anchors.size() && anchors[j].source == anchors[i].source)
+            ++j;
+
+        size_t chosen = i;
+        for (size_t k = i; k < j; ++k)
+        {
+            if (anchors[k].isOnset)
+            {
+                chosen = k;
+                break;
+            }
+        }
+
+        kept.push_back(anchors[chosen]);
+        i = j;
+    }
+
+    anchors.swap(kept);
 }
 
 /// Force the anchors to describe a map that only moves forwards and never
@@ -85,7 +133,7 @@ TimingMap buildTimingMap(const std::vector<TimingTarget>& notes,
     // The take's start is pinned: audio before the first note should not
     // slide, and the map needs a defined value from frame 0 anyway.
     std::vector<Anchor> anchors;
-    anchors.push_back({0.0, 0.0});
+    anchors.push_back({0.0, 0.0, false});
 
     for (const auto& note : notes)
     {
@@ -112,17 +160,19 @@ TimingMap buildTimingMap(const std::vector<TimingTarget>& notes,
                 endShift = startShift; // move the note whole, keep its length
         }
 
-        anchors.push_back({start, start + startShift});
-        anchors.push_back({end, end + endShift});
+        anchors.push_back({start, start + startShift, true});
+        anchors.push_back({end, end + endShift, false});
     }
 
     // The take's end, so trailing audio keeps playing at its own rate.
     anchors.push_back({static_cast<double>(sourceFrameCount),
-                       static_cast<double>(sourceFrameCount)});
+                       static_cast<double>(sourceFrameCount), false});
 
-    std::sort(anchors.begin(), anchors.end(),
-              [](const Anchor& a, const Anchor& b) { return a.source < b.source; });
+    std::stable_sort(
+        anchors.begin(), anchors.end(),
+        [](const Anchor& a, const Anchor& b) { return a.source < b.source; });
 
+    collapseSharedFrames(anchors);
     enforceRateBounds(anchors, params);
 
     // --- interpolate -------------------------------------------------------
