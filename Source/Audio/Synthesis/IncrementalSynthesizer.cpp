@@ -641,14 +641,31 @@ IncrementalSynthesizer::generateBlendMask(int startFrame, int endFrame,
   const int numFrames = endFrame - startFrame;
   const int numSamples = numFrames * hopSize;
 
-  // Step 1: stability-first frame mask.
-  // Default to synthesized audio in the whole region to avoid internal
-  // orig/synth combing artifacts at note junctions.
+  // Step 1: frame mask. Voiced audio is synthesized by default; the run
+  // below hands the unvoiced stretches back to the recording.
   std::vector<float> frameMask(numFrames, 1.0f);
 
-  // Keep original audio only for long unvoiced runs (e.g. clear breaths/silence),
-  // not for short UV gaps between notes.
-  constexpr int kKeepOriginalUnvoicedFrames = 24;
+  // Keep the original audio through unvoiced runs. There is nothing for
+  // synthesis to do to an unvoiced frame - it carries no pitch to correct -
+  // so regenerating one only costs the recording's own texture. Sibilants
+  // are the expensive case: /s/ and /sh/ rebuilt from an 80-band mel come
+  // back as a brittle, slightly metallic hiss, which is what "it sizzles
+  // more than the original" sounds like from the inside.
+  //
+  // Runs too short to hold the crossfade are still synthesized. The mask
+  // ramps over kRampSamples below - about 23 ms at each edge - so a run
+  // shorter than two ramps never reaches the original at full weight and
+  // only produces a stretch where original and synthesized audio are summed
+  // at partial gain, which combs. Six frames is two ramps plus a core, and
+  // comfortably under the length of a sung consonant; the one-to-three frame
+  // gaps between notes, where combing was the original worry, stay
+  // synthesized.
+  //
+  // Frames that MOVED in time are not covered by this reasoning, because the
+  // original samples no longer line up with where they are being played. They
+  // are forced back onto the synthesized side after this function returns -
+  // see the retimed-note pass in synthesizeRegion.
+  constexpr int kKeepOriginalUnvoicedFrames = 6;
   if (numFrames > 0 && totalFrames > 0) {
     int i = 0;
     while (i < numFrames) {
