@@ -653,12 +653,12 @@ IncrementalSynthesizer::generateBlendMask(int startFrame, int endFrame,
   // more than the original" sounds like from the inside.
   //
   // Runs too short to hold the crossfade are still synthesized. The mask
-  // ramps over kRampSamples below - about 23 ms at each edge - so a run
+  // ramps over kRampSamples below - about 8 ms at each edge - so a run
   // shorter than two ramps never reaches the original at full weight and
   // only produces a stretch where original and synthesized audio are summed
-  // at partial gain, which combs. Six frames is two ramps plus a core, and
-  // comfortably under the length of a sung consonant; the one-to-three frame
-  // gaps between notes, where combing was the original worry, stay
+  // at partial gain. Six frames leaves a wide core between the two ramps and
+  // is comfortably under the length of a sung consonant; the one-to-three
+  // frame gaps between notes, where combing was the original worry, stay
   // synthesized.
   //
   // Frames that MOVED in time are not covered by this reasoning, because the
@@ -704,9 +704,17 @@ IncrementalSynthesizer::generateBlendMask(int startFrame, int endFrame,
       mask[s] = frameMask[i];
   }
 
-  // Step 3: smooth transitions with linear ramp at frame boundaries
-  constexpr int kMinRampSamples = 512;
-  const int kRampSamples = std::max(kMinRampSamples, hopSize * 2);
+  // Step 3: ramp across each transition.
+  //
+  // Short on purpose. Every transition is a stretch where both the engine's
+  // audio and the recording are audible at once, and at an unvoiced edge both
+  // of them are breath: two different takes of the same hiss, heard together.
+  // That is what reads as a whisper behind the voice, and the longer the ramp
+  // the longer you hear it. The content here is noise, which hides a fast
+  // handover rather than clicking on one, so the ramp only has to be long
+  // enough not to step. Eight milliseconds is, and it sits well inside the
+  // shortest run that is handed back to the recording at all.
+  constexpr int kRampSamples = 384;
   for (int i = 0; i < numFrames - 1; ++i) {
     if (frameMask[i] == frameMask[i + 1])
       continue;
