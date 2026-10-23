@@ -1461,23 +1461,30 @@ void IncrementalSynthesizer::synthesizeRegion(ProgressCallback onProgress,
           // level steady. The vocoder regenerates the audio from a mel, so
           // its phase has nothing to do with the original's: the two add as
           // powers, and a linear fade loses 3 dB in the middle of every
-          // crossfade while the cancellation sweeps across the spectrum. That
-          // dip is audible at each seam, which is why handing more of the
-          // unvoiced audio back to the recording made the seams worse rather
-          // than better. An equal-power fade keeps sqrt(b)^2 + sqrt(1-b)^2 at
-          // one and removes it.
+          // crossfade while the cancellation sweeps across the spectrum.
+          //
+          // The equal-power fade is written as sine against cosine of a
+          // quarter turn, NOT as sqrt against sqrt. Both hold the power at
+          // one, but sqrt(b) rises vertically out of b = 0: at the ends of
+          // the fade the gain moves infinitely fast, which is a step in all
+          // but name. Over a long ramp that kink is gentle enough to miss.
+          // Over a short one it is a click at both ends of every seam, and
+          // with a seam at every consonant that is a stream of them. Sine and
+          // cosine leave the ends flat, so the fade starts and stops without
+          // a corner.
           //
           // Only values strictly between 0 and 1 are affected either way, so
           // fully synthesized and fully original audio are untouched.
+          constexpr float kQuarterTurn = 1.57079632679489662f;
           std::vector<float> targetSegment(samplesToWrite, 0.0f);
           for (int i = 0; i < samplesToWrite; ++i) {
             const float b =
                 (i < static_cast<int>(blendMask.size())) ? blendMask[i] : 0.0f;
             const float synth = synthesizedAudio[static_cast<size_t>(i)];
             const float orig = originalSegment[static_cast<size_t>(i)];
-            const float synthGain = usePsola ? b : std::sqrt(b);
-            const float origGain =
-                usePsola ? (1.0f - b) : std::sqrt(1.0f - b);
+            const float angle = b * kQuarterTurn;
+            const float synthGain = usePsola ? b : std::sin(angle);
+            const float origGain = usePsola ? (1.0f - b) : std::cos(angle);
             targetSegment[static_cast<size_t>(i)] =
                 synthGain * synth + origGain * orig;
           }
