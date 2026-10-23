@@ -278,7 +278,10 @@ Studio Pro が起動したままだと、プラグイン未インスタンス化
 
 ログが出ているかも判定に使える。`%APPDATA%\Kisyo Tune\Logs\` が無ければ、そのセッションでは新しい logging ビルドが動いていない。
 
-## 16. 2026-10-23 インストール済みビルド: fbb4433 (guide-anchor-and-reach)
+## 16. 2026-10-23 ビルド履歴 (guide-anchor-and-reach)
+
+**Studio Pro で動いているのは fbb4433**。bb5313a はファイルを置いただけで、
+ホストを再起動するまで読み込まれない（§15）。
 
 入っているもの:
 
@@ -315,13 +318,36 @@ Studio Pro が起動したままだと、プラグイン未インスタンス化
 
 - タイミング補正の AI 再合成 (課題 5)。未着手。設計から。
 - 音質のさらなる改善 (課題 4)。ユーザーの優先度は低め。
-- **BPM 補正とテンポマップ**。`TimingCorrectionPanel` はグリッドを
-  「Apply を押した瞬間のホストのテンポ 1 つ」＋「ホスト時刻 0 を 1 小節目の頭と
-  みなす」で作っている (`firstBeatFrame` の算出)。テンポが一定で曲頭が 0 秒の
-  曲なら正しいが、テンポトラックを使っている曲では最初以外すべてずれる。
-  『竹取オーバーナイトセンセーション』はテンポトラックが 最大 205 / 最小 100 で、
-  まさにこれに当たる。ARA の musical context (`ARAContentTempoEntry`) を読めば
-  ホストの拍位置そのものを取れるが、このコードベースには musical context を
-  読む箇所が今は一つも無いので、新規の作業になる。ユーザーに確認してから。
 - グリッドの許容幅はハードな閾値。境界をまたぐ隣り合ったノートの扱いが
   不連続になるので、傾斜にする余地はある（未着手、効果は未検証）。
+- 許容幅は take 全体で 1 つのフレーム数で、リージョン先頭の拍間隔から出して
+  いる。テンポトラックをまたぐ take では片端で甘くなる。
+
+## 17. bb5313a: ホストのテンポマップを読む
+
+グリッドは「Apply を押した瞬間のテンポ 1 つ」で作っていた。トランスポートが
+返すのは再生ヘッド位置のテンポなので、イントロに再生ヘッドを置いたまま 4 分
+過ぎの take を補正すると、イントロのテンポで引いたグリッドに吸着する。
+『竹取オーバーナイトセンセーション』は 100〜205 で動くので、まさにこれ。
+
+ARA の musical context が答えを持っている (`kARAContentTypeTempoEntries`:
+秒と四分音符の対、間は一定テンポ = テンポトラックそのもの)。
+`PitchNetAudioProcessorEditor::readHostTempoMap()` が、対象リージョンの
+**リージョンシーケンス経由で** musical context を取って読む
+（JUCE は `ARAPlaybackRegion` に `getMusicalContext` を出していない。
+`ARARegionSequence` にはある）。`isMusicalContextContentAvailable` で
+可否を先に聞くのは SDK の要求。
+
+`TempoMap` (Source/Audio/Correction/TempoMap.h) は SDK 非依存なので
+`tests/TempoMapTests.cpp` で単体テストできる。`TimingGrid` はマップがあれば
+フレーム→曲中の秒→四分音符で丸めて戻す。マップが無いホストでは従来の
+単一 BPM にフォールバックする。
+
+### CI のログが読めない件（解決済み）
+
+`results-receiver.actions.githubusercontent.com` はこの環境のポリシーで
+拒否されるので、`gh run view --log` は常に Forbidden になる。失敗が
+「exit code 1」としか見えない。windows-release.yml の Build ステップが
+出力を `build.log` に tee するようにして、失敗時に ci-builds ブランチへ
+`BUILD-LOG.txt` として publish するステップを足した。これで
+`git show FETCH_HEAD:BUILD-LOG.txt` でコンパイルエラーが読める。
