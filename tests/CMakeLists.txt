@@ -35,6 +35,7 @@ set(PITCHNET_TEST_SOURCES
     TimingCorrectionTests.cpp
     TransitionSmoothingTests.cpp
     TimingMapTests.cpp
+    TempoMapTests.cpp
     HarmonyIntervalTests.cpp
     HostSyncTempoTests.cpp
     NoteGainCurveTests.cpp

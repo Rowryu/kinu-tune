@@ -273,26 +273,38 @@ void TimingCorrectionPanel::runCorrection()
     params.grid.bpm = getHostBpm ? getHostBpm() : 0.0;
     params.grid.divisionsPerBeat =
         gridId >= 1 && gridId <= 4 ? kDivisionsForId[gridId] : 4;
-    // The slider is a share of the furthest a note can be from a grid line,
-    // which is half the spacing between them.
-    params.gridToleranceFrames =
-        toleranceSlider.getValue() / 100.0 * (params.grid.framesPerDivision() / 2.0);
-
     // Anchor the grid to the host's beats, not to the start of this region's
     // audio. Notes are numbered from their own modification's frame zero,
     // which sits at an arbitrary point in the song, so a grid left at frame
     // zero lands wherever the clip happens to begin.
+    const double hostOffset =
+        getProjectHostOffsetSeconds ? getProjectHostOffsetSeconds() : 0.0;
+    params.grid.hostOffsetSeconds = hostOffset;
     params.grid.firstBeatFrame = 0.0;
-    if (params.grid.bpm > 0.0 && getProjectHostOffsetSeconds)
+
+    // Prefer the song's own tempo map. The single BPM below is a fallback for
+    // hosts that do not publish one, and it can only be right for a song that
+    // never changes tempo.
+    if (getHostTempoMap)
+        params.grid.tempoMap = correction::TempoMap(getHostTempoMap());
+
+    if (params.grid.tempoMap.isEmpty() && params.grid.bpm > 0.0)
     {
-        const double offset = getProjectHostOffsetSeconds();
         const double secondsPerBeat = 60.0 / params.grid.bpm;
         // The last host beat at or before this region's frame zero, expressed
         // in project frames (so usually zero or slightly negative).
         const double beatBefore =
-            std::floor(offset / secondsPerBeat) * secondsPerBeat;
-        params.grid.firstBeatFrame = (beatBefore - offset) * fps;
+            std::floor(hostOffset / secondsPerBeat) * secondsPerBeat;
+        params.grid.firstBeatFrame = (beatBefore - hostOffset) * fps;
     }
+
+    // The slider is a share of the furthest a note can be from a grid line,
+    // which is half the spacing between them. Under a tempo track that
+    // spacing moves; this takes it at the start of the region, which is the
+    // honest single number to offer for a take that usually sits in one
+    // section of the song.
+    params.gridToleranceFrames =
+        toleranceSlider.getValue() / 100.0 * (params.grid.framesPerDivision() / 2.0);
 
     const auto guide = getGuideNotes ? getGuideNotes()
                                      : std::vector<correction::GuideNote>{};

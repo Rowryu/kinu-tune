@@ -178,10 +178,36 @@ int anchorFrameFor(const std::vector<float>& rms,
     return findEnergyPeakFrame(rms, startFrame, endFrame);
 }
 
-double TimingGrid::framesPerDivision() const
+double TimingGrid::quartersAtFrame(double frame) const
+{
+    return tempoMap.quartersAt(hostOffsetSeconds + frame / framesPerSecond);
+}
+
+double TimingGrid::frameAtQuarters(double quarters) const
+{
+    return (tempoMap.secondsAt(quarters) - hostOffsetSeconds) * framesPerSecond;
+}
+
+double TimingGrid::framesPerDivisionAt(double frame) const
 {
     const int divisions = std::max(1, divisionsPerBeat);
-    if (bpm <= 0.0 || framesPerSecond <= 0.0)
+    if (framesPerSecond <= 0.0)
+        return 0.0;
+
+    if (!tempoMap.isEmpty())
+    {
+        // Under a tempo track the spacing is a local quantity: one division
+        // at 100 BPM is twice one at 200. Measure it where it is being asked
+        // about rather than assuming the song holds one tempo.
+        const double step = 1.0 / static_cast<double>(divisions);
+        const double here = quartersAtFrame(frame);
+        const double spacing = frameAtQuarters(here + step) - frameAtQuarters(here);
+        if (spacing > 0.0)
+            return spacing;
+        // A degenerate map; fall through to the single tempo below.
+    }
+
+    if (bpm <= 0.0)
         return 0.0;
     const double secondsPerBeat = 60.0 / bpm;
     return secondsPerBeat * framesPerSecond / static_cast<double>(divisions);
@@ -189,7 +215,15 @@ double TimingGrid::framesPerDivision() const
 
 double TimingGrid::snap(double frame) const
 {
-    const double step = framesPerDivision();
+    if (!tempoMap.isEmpty() && framesPerSecond > 0.0)
+    {
+        const int divisions = std::max(1, divisionsPerBeat);
+        const double step = 1.0 / static_cast<double>(divisions);
+        const double here = quartersAtFrame(frame);
+        return frameAtQuarters(std::round(here / step) * step);
+    }
+
+    const double step = framesPerDivisionAt(frame);
     if (step <= 0.0)
         return frame;
     return firstBeatFrame +

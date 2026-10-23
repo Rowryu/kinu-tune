@@ -358,6 +358,11 @@ void PitchNetAudioProcessorEditor::setupARAMode() {
     return region->getStartInPlaybackTime() - startInModification;
   });
 
+  // The tempo the transport reports is one number, read where the playhead
+  // happens to be. A song with a tempo track has no such number, so ask ARA
+  // for the song's own tempo map and let the grid follow it.
+  mainView->setHostTempoMapProvider([this] { return readHostTempoMap(); });
+
   // A guide can come from another track that has the plug-in on it, which is
   // only possible under ARA: every instance shares one document.
   mainView->setGuideTrackProvider(
@@ -740,6 +745,53 @@ juce::ARAPlaybackRegion *PitchNetAudioProcessorEditor::activeAraRegion() {
     if (region != nullptr && pitchnetRegionSelector(*region) == selector)
       return region;
   return nullptr;
+}
+
+std::vector<correction::TempoPoint>
+PitchNetAudioProcessorEditor::readHostTempoMap() {
+  // ARA publishes the song's tempo as sync points on the musical context the
+  // edited region belongs to: pairs of (seconds, quarter notes) with a
+  // constant tempo between neighbours. That is the whole tempo track, which
+  // is the thing a single BPM reading cannot stand in for.
+  //
+  // Not every host offers it, so availability is asked first - the SDK is
+  // explicit that a reader may only be created once it has been confirmed.
+  std::vector<correction::TempoPoint> points;
+
+  auto *region = activeAraRegion();
+  if (region == nullptr)
+    return points;
+
+  auto *musicalContext = region->getMusicalContext();
+  if (musicalContext == nullptr)
+    return points;
+
+  auto *documentController = musicalContext->getDocumentController();
+  if (documentController == nullptr)
+    return points;
+
+  auto *contentAccess = documentController->getHostContentAccessController();
+  if (contentAccess == nullptr)
+    return points;
+
+  if (!contentAccess->isMusicalContextContentAvailable(
+          musicalContext->getHostRef(), ARA::kARAContentTypeTempoEntries))
+    return points;
+
+  const ARA::PlugIn::HostContentReader<ARA::kARAContentTypeTempoEntries> reader{
+      musicalContext};
+
+  const auto count = reader.getEventCount();
+  if (count > 0)
+    points.reserve(static_cast<size_t>(count));
+  for (ARA::ARAInt32 i = 0; i < count; ++i) {
+    const auto entry = reader[i];
+    points.push_back({entry.timePosition, entry.quarterPosition});
+  }
+
+  LOG("Host tempo map: " + juce::String(static_cast<int>(points.size())) +
+      " sync points");
+  return points;
 }
 
 std::vector<MainViewTrackEntry>

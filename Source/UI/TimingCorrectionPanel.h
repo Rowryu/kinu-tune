@@ -43,8 +43,15 @@ public:
     /// The guide the MIDI guide card currently holds, empty when it has none.
     std::function<std::vector<correction::GuideNote>()> getGuideNotes;
 
-    /// The host's tempo, for grid mode.
+    /// The host's tempo, for grid mode. A single number, so it can only
+    /// describe a song that holds one tempo; see getHostTempoMap.
     std::function<double()> getHostBpm;
+
+    /// The song's whole tempo map, when the host hands one over. This is what
+    /// grid mode uses when it is there: a song with a tempo track has no
+    /// single BPM, and a grid built from one is right where it was read and
+    /// further out with every bar after it.
+    std::function<std::vector<correction::TempoPoint>()> getHostTempoMap;
 
     /// Host time, in seconds, of this region's frame zero. Grid mode needs
     /// it: the host's beats are on the song's timeline, and the notes are

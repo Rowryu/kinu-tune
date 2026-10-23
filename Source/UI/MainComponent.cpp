@@ -3099,6 +3099,11 @@ void MainComponent::setHostBpmProvider(std::function<double()> getBpm)
   panel.refreshGuideSources();
 }
 
+void MainComponent::setHostTempoMapProvider(
+    std::function<std::vector<correction::TempoPoint>()> getTempoMap) {
+  variAudioInspector.getTimingPanel().getHostTempoMap = std::move(getTempoMap);
+}
+
 void MainComponent::setProjectHostOffsetProvider(
     std::function<double()> getOffsetSeconds)
 {

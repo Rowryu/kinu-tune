@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../Audio/Correction/MidiGuideTypes.h"
+#include "../Audio/Correction/TempoMap.h"
 #include "../JuceHeader.h"
 #include "RegionPreview.h"
 #include <functional>
@@ -122,6 +123,11 @@ public:
       unset in the standalone app, where the guide can only be a file. */
   /** The host's tempo in BPM, or 0 when there is no host. */
   virtual void setHostBpmProvider(std::function<double()> getBpm) = 0;
+  /** The song's tempo map, when the host publishes one. Grid timing
+      correction prefers it over the single BPM above, which cannot describe a
+      song with a tempo track. Empty means the host offered nothing. */
+  virtual void setHostTempoMapProvider(
+      std::function<std::vector<correction::TempoPoint>()> getTempoMap) = 0;
   /** Host time, in seconds, of the edited region's frame zero. */
   virtual void setProjectHostOffsetProvider(
       std::function<double()> getOffsetSeconds) = 0;

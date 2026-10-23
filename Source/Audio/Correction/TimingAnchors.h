@@ -4,6 +4,7 @@
 #pragma once
 
 #include "MidiGuideTypes.h"
+#include "TempoMap.h"
 #include "TimingMap.h"
 
 #include <vector>
@@ -99,12 +100,34 @@ struct TimingGrid
     /// Grid lines per beat. 1 = quarter notes, 2 = eighths, 4 = sixteenths.
     int divisionsPerBeat = 4;
     /// Frame the first beat of the take falls on. A region rarely starts on
-    /// a beat, so this carries the host's bar position.
+    /// a beat, so this carries the host's bar position. Used only when there
+    /// is no tempo map.
     double firstBeatFrame = 0.0;
 
-    double framesPerDivision() const;
+    /// The song's tempo map, when the host gave us one, and where this
+    /// region's frame zero sits on the song's timeline.
+    ///
+    /// With a map the grid is read straight off the host's own beats and
+    /// `bpm` and `firstBeatFrame` are ignored. Without one the grid is built
+    /// from a single tempo laid down from `firstBeatFrame`, which is right
+    /// only for a song that holds one tempo throughout: under a tempo track
+    /// such a grid is correct at the start and drifts further out with every
+    /// bar after it.
+    TempoMap tempoMap;
+    double hostOffsetSeconds = 0.0;
+
+    /// Spacing of the grid, in frames. With a tempo map this varies along the
+    /// take, so it is the spacing at `frame`; `framesPerDivision()` answers
+    /// for the start of the region.
+    double framesPerDivisionAt(double frame) const;
+    double framesPerDivision() const { return framesPerDivisionAt(0.0); }
     /// Nearest grid frame to `frame`.
     double snap(double frame) const;
+
+private:
+    /// Quarter-note position of a frame of this region, and back again.
+    double quartersAtFrame(double frame) const;
+    double frameAtQuarters(double quarters) const;
 };
 
 /**

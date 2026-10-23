@@ -68,6 +68,9 @@ private:
     // work with" and normally sees only the active track.
     std::vector<juce::ARAPlaybackRegion *> collectDocumentPlaybackRegions() const;
     juce::ARAPlaybackRegion *activeAraRegion();
+    /// The song's tempo map as ARA reports it, empty when the host
+    /// publishes none. See readHostTempoMap in the .cpp for why.
+    std::vector<correction::TempoPoint> readHostTempoMap();
     std::vector<MainViewTrackEntry> listGuideTrackCandidates();
     std::vector<correction::GuideNote> buildGuideFromTrack(
         const juce::String &trackKey);
