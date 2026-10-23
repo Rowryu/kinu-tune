@@ -633,6 +633,12 @@ IncrementalSynthesizer::computeSynthesisRange(int dirtyStart, int dirtyEnd) {
 // generateBlendMask: per-sample blend factor from voicedMask.
 // 1.0 = synthesized, 0.0 = original, smooth ramps at transitions.
 // ---------------------------------------------------------------------------
+// How long the blend takes to hand over between the engine's audio and the
+// recording, in samples. Every place that moves the mask uses it: a step
+// anywhere in the mask is a click, and the mask is written in more than one
+// pass.
+constexpr int kBlendRampSamples = 384;
+
 std::vector<float>
 IncrementalSynthesizer::generateBlendMask(int startFrame, int endFrame,
                                           int hopSize) {
@@ -714,7 +720,7 @@ IncrementalSynthesizer::generateBlendMask(int startFrame, int endFrame,
   // handover rather than clicking on one, so the ramp only has to be long
   // enough not to step. Eight milliseconds is, and it sits well inside the
   // shortest run that is handed back to the recording at all.
-  constexpr int kRampSamples = 384;
+  constexpr int kRampSamples = kBlendRampSamples;
   for (int i = 0; i < numFrames - 1; ++i) {
     if (frameMask[i] == frameMask[i + 1])
       continue;
@@ -962,10 +968,40 @@ void IncrementalSynthesizer::synthesizeRegion(ProgressCallback onProgress,
     const int last = std::min(endFrame, timingEnd);
     const int firstSample = (first - startFrame) * hopSize;
     const int lastSample = (last - startFrame) * hopSize;
-    for (int sample = std::max(0, firstSample);
-         sample < std::min(static_cast<int>(blendMask.size()), lastSample);
+
+    const int maskSize = static_cast<int>(blendMask.size());
+    const auto raiseTo = [&blendMask, maskSize](int sample, float value) {
+      if (sample < 0 || sample >= maskSize)
+        return;
+      auto &slot = blendMask[static_cast<size_t>(sample)];
+      slot = std::max(slot, value);
+    };
+
+    // The note itself is wholly synthesized, and the mask is eased up to
+    // that on both sides rather than stepped. Writing 1.0 straight into a
+    // stretch the mask had left at 0 - which is every unvoiced run now that
+    // the consonants are handed back to the recording - switches from the
+    // recording to the engine's audio in a single sample. That is a click,
+    // one at each end of every retimed note, and no amount of smoothing
+    // inside generateBlendMask can reach it: this pass runs afterwards.
+    //
+    // The approach is spent outside the note, so the retimed audio is never
+    // mixed with pristine samples that no longer line up with it, and the
+    // mask is only ever raised, so a neighbouring note that already claimed
+    // its own stretch keeps it.
+    for (int sample = firstSample - kBlendRampSamples; sample < firstSample;
          ++sample)
+      raiseTo(sample, static_cast<float>(sample - (firstSample - kBlendRampSamples)) /
+                          static_cast<float>(kBlendRampSamples));
+
+    for (int sample = std::max(0, firstSample);
+         sample < std::min(maskSize, lastSample); ++sample)
       blendMask[static_cast<size_t>(sample)] = 1.0f;
+
+    for (int sample = lastSample; sample < lastSample + kBlendRampSamples;
+         ++sample)
+      raiseTo(sample, 1.0f - static_cast<float>(sample - lastSample) /
+                                 static_cast<float>(kBlendRampSamples));
   }
 
   // Early exit: if blend mask is all-zero, nothing to synthesize
