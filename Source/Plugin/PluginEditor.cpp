@@ -511,8 +511,26 @@ void PitchNetAudioProcessorEditor::setupARAMode() {
         activateAraRegionByKey(regionKey, false);
       });
   // Clicking an inactive track in the left side panel switches to it.
+  //
+  // Switching to a PINNED track swaps the two: the track being left behind
+  // takes the pin. A pin says "keep showing me this one next to the one I am
+  // working on", and that is still what the user means after the swap -
+  // without this they lose the reference the moment they follow it, and have
+  // to re-pin the track they just came from by hand every time.
   mainView->setOnTrackSelected([this](const juce::String &trackKey) {
+    const bool wasPinned = pinnedTrackKeys.count(trackKey) > 0;
+    const juce::String previousActive = activeAraTrackKey();
+
     activateAraTrackByKey(trackKey);
+
+    // The active track's pin is dropped where the list is rebuilt, so the
+    // swap only has to add the other half.
+    if (wasPinned && previousActive.isNotEmpty() && previousActive != trackKey) {
+      pinnedTrackKeys.insert(previousActive);
+      lastPublishedTrackSignature.clear();
+      lastPublishedPreviewSignature.clear();
+      refreshAraRegionList();
+    }
   });
   // Pinning a track draws its notes on the canvas (Track mode).
   mainView->setOnTrackPinChanged([this](const juce::String &trackKey,
@@ -745,6 +763,14 @@ juce::ARAPlaybackRegion *PitchNetAudioProcessorEditor::activeAraRegion() {
     if (region != nullptr && pitchnetRegionSelector(*region) == selector)
       return region;
   return nullptr;
+}
+
+juce::String PitchNetAudioProcessorEditor::activeAraTrackKey() {
+  auto *region = activeAraRegion();
+  if (region == nullptr)
+    return {};
+  auto *sequence = region->getRegionSequence();
+  return sequence != nullptr ? araTrackKey(sequence) : juce::String();
 }
 
 std::vector<correction::TempoPoint>

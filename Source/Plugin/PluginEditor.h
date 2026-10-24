@@ -70,6 +70,8 @@ private:
     juce::ARAPlaybackRegion *activeAraRegion();
     /// The song's tempo map as ARA reports it, empty when the host
     /// publishes none. See readHostTempoMap in the .cpp for why.
+    /// Key of the track the canvas is currently editing, or empty.
+    juce::String activeAraTrackKey();
     std::vector<correction::TempoPoint> readHostTempoMap();
     std::vector<MainViewTrackEntry> listGuideTrackCandidates();
     std::vector<correction::GuideNote> buildGuideFromTrack(
