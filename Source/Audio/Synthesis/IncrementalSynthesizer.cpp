@@ -1,4 +1,5 @@
 #include "IncrementalSynthesizer.h"
+#include "RetimeMapping.h"
 #include "FormantShifter.h"
 #include "OriginalWaveformRestore.h"
 #include "../../Utils/NoteGainCurve.h"
@@ -123,10 +124,22 @@ std::vector<float> interpolateMelFrame(
   return frame;
 }
 
+/// Consonant head of a retimed note, kept at its own rate (retime::headFrames).
+/// Zero when the note keeps its length, so a plain move is untouched.
+int retimeHeadFrames(const Project &project, const Note &note) {
+  const int sourceLength = note.getSrcEndFrame() - note.getSrcStartFrame();
+  const int destinationLength = note.getEndFrame() - note.getStartFrame();
+  if (sourceLength == destinationLength)
+    return 0;
+  return retime::headFrames(project.getAudioData().f0, note.getSrcStartFrame(),
+                            note.getSrcEndFrame(), destinationLength);
+}
+
 void retimeMelInterval(const std::vector<std::vector<float>> &sourceMel,
                        int sourceStart, int sourceEnd, int destinationStart,
                        int destinationEnd, int rangeStart, int rangeEnd,
-                       std::vector<std::vector<float>> &melRange) {
+                       std::vector<std::vector<float>> &melRange,
+                       int head = 0) {
   const int sourceLength = sourceEnd - sourceStart;
   const int destinationLength = destinationEnd - destinationStart;
   if (sourceLength <= 0 || destinationLength <= 0)
@@ -135,11 +148,8 @@ void retimeMelInterval(const std::vector<std::vector<float>> &sourceMel,
   const int overlapStart = std::max(rangeStart, destinationStart);
   const int overlapEnd = std::min(rangeEnd, destinationEnd);
   for (int frame = overlapStart; frame < overlapEnd; ++frame) {
-    const double normalized =
-        (static_cast<double>(frame - destinationStart) + 0.5) /
-        static_cast<double>(destinationLength);
-    const double sourceFrame = static_cast<double>(sourceStart) +
-                               normalized * sourceLength - 0.5;
+    const double sourceFrame = retime::sourcePosition(
+        frame, sourceStart, sourceEnd, destinationStart, destinationEnd, head);
     melRange[static_cast<size_t>(frame - rangeStart)] =
         interpolateMelFrame(sourceMel, sourceFrame);
   }
@@ -172,7 +182,8 @@ void applyNoteTimingToMel(const Project &project, int rangeStart,
 
     retimeMelInterval(sourceMel, note.getSrcStartFrame(),
                       note.getSrcEndFrame(), note.getStartFrame(),
-                      note.getEndFrame(), rangeStart, rangeEnd, melRange);
+                      note.getEndFrame(), rangeStart, rangeEnd, melRange,
+                      retimeHeadFrames(project, note));
   }
 }
 
@@ -189,7 +200,8 @@ void moveSourceFrameInterval(const PreservedTimingSpan &span, int rangeStart,
 void retimeSourceFrameInterval(int sourceStart, int sourceEnd,
                                int destinationStart, int destinationEnd,
                                int rangeStart, int rangeEnd,
-                               std::vector<double> &sourceFrameMap) {
+                               std::vector<double> &sourceFrameMap,
+                               int head = 0) {
   const int sourceLength = sourceEnd - sourceStart;
   const int destinationLength = destinationEnd - destinationStart;
   if (sourceLength <= 0 || destinationLength <= 0)
@@ -198,11 +210,9 @@ void retimeSourceFrameInterval(int sourceStart, int sourceEnd,
   const int overlapStart = std::max(rangeStart, destinationStart);
   const int overlapEnd = std::min(rangeEnd, destinationEnd);
   for (int frame = overlapStart; frame < overlapEnd; ++frame) {
-    const double normalized =
-        (static_cast<double>(frame - destinationStart) + 0.5) /
-        static_cast<double>(destinationLength);
     sourceFrameMap[static_cast<size_t>(frame - rangeStart)] =
-        static_cast<double>(sourceStart) + normalized * sourceLength - 0.5;
+        retime::sourcePosition(frame, sourceStart, sourceEnd,
+                               destinationStart, destinationEnd, head);
   }
 }
 
@@ -222,7 +232,8 @@ void applyNoteTimingToSourceFrames(const Project &project, int rangeStart,
 
     retimeSourceFrameInterval(note.getSrcStartFrame(), note.getSrcEndFrame(),
                               note.getStartFrame(), note.getEndFrame(),
-                              rangeStart, rangeEnd, sourceFrameMap);
+                              rangeStart, rangeEnd, sourceFrameMap,
+                              retimeHeadFrames(project, note));
   }
 }
 

@@ -985,3 +985,14 @@ browser. Paraphrased takeaways and what they map to:
   bounds keep it exactly at the onset's shift, so the head is copied at rate 1
   and the stretch lands in the sustained vowel / previous tail. Test:
   `testAConsonantHeadMovesRigidly`.
+- **Correction to the above:** the timing map only decides where note edges
+  land; the audio inside a note is rendered by `retimeMelInterval` /
+  `retimeSourceFrameInterval`, which stretched each note linearly. So the map's
+  rigid head alone did nothing audible. The real fix is in the renderer:
+  `retime::sourcePosition` (Synthesis/RetimeMapping.h, tests/RetimeMappingTests)
+  copies the head (`retime::headFrames`: to the first voiced frame + 3, ≤ 40 %)
+  one to one and stretches only the rest. Applies only to notes whose length
+  changed; a plain move is untouched. Both engines go through these two calls.
+- Video (2nd half): split syllables sung together into separate notes and snap
+  each; tight "ん" endings matter. → next: detect syllable onsets inside a note
+  (unvoiced run / RMS dip) and split there before grid timing.
