@@ -26,11 +26,12 @@ struct PitchTargetParams
     /// against the full distance to the guide, before strength scales it, so
     /// a low strength cannot smuggle a wrong match under the bar.
     ///
-    /// A semitone is already generous for a tuning error. Singers land within
-    /// a few tens of cents of what they meant; a note a whole tone out is a
-    /// different note, and correcting towards it is how a correction comes
-    /// back sounding processed.
-    float maxShiftSemitones = 1.0f;
+    /// Left at two semitones. A tighter default was tried on the theory that
+    /// large moves are what sounds processed, and that theory is wrong: a
+    /// good shifter moves a vocal note a tone without complaint, as the
+    /// user's own reference tool does. The ceiling is here to catch matches
+    /// that cannot be right, not to ration how far the audio may travel.
+    float maxShiftSemitones = 2.0f;
 
     /// Matches below this confidence are left uncorrected entirely.
     float minConfidence = 0.25f;

@@ -633,12 +633,6 @@ IncrementalSynthesizer::computeSynthesisRange(int dirtyStart, int dirtyEnd) {
 // generateBlendMask: per-sample blend factor from voicedMask.
 // 1.0 = synthesized, 0.0 = original, smooth ramps at transitions.
 // ---------------------------------------------------------------------------
-// How long the blend takes to hand over between the engine's audio and the
-// recording, in samples. Every place that moves the mask uses it: a step
-// anywhere in the mask is a click, and the mask is written in more than one
-// pass.
-constexpr int kBlendRampSamples = 384;
-
 std::vector<float>
 IncrementalSynthesizer::generateBlendMask(int startFrame, int endFrame,
                                           int hopSize) {
@@ -647,31 +641,14 @@ IncrementalSynthesizer::generateBlendMask(int startFrame, int endFrame,
   const int numFrames = endFrame - startFrame;
   const int numSamples = numFrames * hopSize;
 
-  // Step 1: frame mask. Voiced audio is synthesized by default; the run
-  // below hands the unvoiced stretches back to the recording.
+  // Step 1: stability-first frame mask.
+  // Default to synthesized audio in the whole region to avoid internal
+  // orig/synth combing artifacts at note junctions.
   std::vector<float> frameMask(numFrames, 1.0f);
 
-  // Keep the original audio through unvoiced runs. There is nothing for
-  // synthesis to do to an unvoiced frame - it carries no pitch to correct -
-  // so regenerating one only costs the recording's own texture. Sibilants
-  // are the expensive case: /s/ and /sh/ rebuilt from an 80-band mel come
-  // back as a brittle, slightly metallic hiss, which is what "it sizzles
-  // more than the original" sounds like from the inside.
-  //
-  // Runs too short to hold the crossfade are still synthesized. The mask
-  // ramps over kRampSamples below - about 8 ms at each edge - so a run
-  // shorter than two ramps never reaches the original at full weight and
-  // only produces a stretch where original and synthesized audio are summed
-  // at partial gain. Six frames leaves a wide core between the two ramps and
-  // is comfortably under the length of a sung consonant; the one-to-three
-  // frame gaps between notes, where combing was the original worry, stay
-  // synthesized.
-  //
-  // Frames that MOVED in time are not covered by this reasoning, because the
-  // original samples no longer line up with where they are being played. They
-  // are forced back onto the synthesized side after this function returns -
-  // see the retimed-note pass in synthesizeRegion.
-  constexpr int kKeepOriginalUnvoicedFrames = 6;
+  // Keep original audio only for long unvoiced runs (e.g. clear breaths/silence),
+  // not for short UV gaps between notes.
+  constexpr int kKeepOriginalUnvoicedFrames = 24;
   if (numFrames > 0 && totalFrames > 0) {
     int i = 0;
     while (i < numFrames) {
@@ -710,17 +687,9 @@ IncrementalSynthesizer::generateBlendMask(int startFrame, int endFrame,
       mask[s] = frameMask[i];
   }
 
-  // Step 3: ramp across each transition.
-  //
-  // Short on purpose. Every transition is a stretch where both the engine's
-  // audio and the recording are audible at once, and at an unvoiced edge both
-  // of them are breath: two different takes of the same hiss, heard together.
-  // That is what reads as a whisper behind the voice, and the longer the ramp
-  // the longer you hear it. The content here is noise, which hides a fast
-  // handover rather than clicking on one, so the ramp only has to be long
-  // enough not to step. Eight milliseconds is, and it sits well inside the
-  // shortest run that is handed back to the recording at all.
-  constexpr int kRampSamples = kBlendRampSamples;
+  // Step 3: smooth transitions with linear ramp at frame boundaries
+  constexpr int kMinRampSamples = 512;
+  const int kRampSamples = std::max(kMinRampSamples, hopSize * 2);
   for (int i = 0; i < numFrames - 1; ++i) {
     if (frameMask[i] == frameMask[i + 1])
       continue;
@@ -968,40 +937,10 @@ void IncrementalSynthesizer::synthesizeRegion(ProgressCallback onProgress,
     const int last = std::min(endFrame, timingEnd);
     const int firstSample = (first - startFrame) * hopSize;
     const int lastSample = (last - startFrame) * hopSize;
-
-    const int maskSize = static_cast<int>(blendMask.size());
-    const auto raiseTo = [&blendMask, maskSize](int sample, float value) {
-      if (sample < 0 || sample >= maskSize)
-        return;
-      auto &slot = blendMask[static_cast<size_t>(sample)];
-      slot = std::max(slot, value);
-    };
-
-    // The note itself is wholly synthesized, and the mask is eased up to
-    // that on both sides rather than stepped. Writing 1.0 straight into a
-    // stretch the mask had left at 0 - which is every unvoiced run now that
-    // the consonants are handed back to the recording - switches from the
-    // recording to the engine's audio in a single sample. That is a click,
-    // one at each end of every retimed note, and no amount of smoothing
-    // inside generateBlendMask can reach it: this pass runs afterwards.
-    //
-    // The approach is spent outside the note, so the retimed audio is never
-    // mixed with pristine samples that no longer line up with it, and the
-    // mask is only ever raised, so a neighbouring note that already claimed
-    // its own stretch keeps it.
-    for (int sample = firstSample - kBlendRampSamples; sample < firstSample;
-         ++sample)
-      raiseTo(sample, static_cast<float>(sample - (firstSample - kBlendRampSamples)) /
-                          static_cast<float>(kBlendRampSamples));
-
     for (int sample = std::max(0, firstSample);
-         sample < std::min(maskSize, lastSample); ++sample)
-      blendMask[static_cast<size_t>(sample)] = 1.0f;
-
-    for (int sample = lastSample; sample < lastSample + kBlendRampSamples;
+         sample < std::min(static_cast<int>(blendMask.size()), lastSample);
          ++sample)
-      raiseTo(sample, 1.0f - static_cast<float>(sample - lastSample) /
-                                 static_cast<float>(kBlendRampSamples));
+      blendMask[static_cast<size_t>(sample)] = 1.0f;
   }
 
   // Early exit: if blend mask is all-zero, nothing to synthesize
@@ -1366,7 +1305,7 @@ void IncrementalSynthesizer::synthesizeRegion(ProgressCallback onProgress,
   // same span of samples and share this callback verbatim.
   auto onRendered =
       [this, capturedCancelFlag, capturedProject, capturedStartFrame,
-       capturedEndFrame, hopSize, currentJobId, onComplete, usePsola,
+       capturedEndFrame, hopSize, currentJobId, onComplete,
        formantShifts, formantF0, formantSampleRate, hasGlobalFormant,
        hasDirtyNoteAnchors, f0DirtyStart, f0DirtyEnd,
        capturedNoteCount, commitFrameRanges = std::move(commitFrameRanges),
@@ -1391,7 +1330,7 @@ void IncrementalSynthesizer::synthesizeRegion(ProgressCallback onProgress,
 
         std::thread([this, capturedCancelFlag, capturedProject,
                      capturedStartFrame, capturedEndFrame, hopSize,
-                     currentJobId, onComplete, usePsola, hasDirtyNoteAnchors,
+                     currentJobId, onComplete, hasDirtyNoteAnchors,
                      f0DirtyStart, f0DirtyEnd, capturedNoteCount,
                      commitFrameRanges, blendMask, originalSegment,
                      audioMovePatches, formantShifts, formantF0, formantSampleRate, hasGlobalFormant,
@@ -1489,40 +1428,14 @@ void IncrementalSynthesizer::synthesizeRegion(ProgressCallback onProgress,
           }
 
           // Build blended target from model/original.
-          //
-          // Which crossfade law is right depends on how alike the two sides
-          // are, and that is decided by the engine. PSOLA transforms the
-          // original waveform, so its output still correlates with the
-          // original: the two add as amplitudes and a linear fade holds the
-          // level steady. The vocoder regenerates the audio from a mel, so
-          // its phase has nothing to do with the original's: the two add as
-          // powers, and a linear fade loses 3 dB in the middle of every
-          // crossfade while the cancellation sweeps across the spectrum.
-          //
-          // The equal-power fade is written as sine against cosine of a
-          // quarter turn, NOT as sqrt against sqrt. Both hold the power at
-          // one, but sqrt(b) rises vertically out of b = 0: at the ends of
-          // the fade the gain moves infinitely fast, which is a step in all
-          // but name. Over a long ramp that kink is gentle enough to miss.
-          // Over a short one it is a click at both ends of every seam, and
-          // with a seam at every consonant that is a stream of them. Sine and
-          // cosine leave the ends flat, so the fade starts and stops without
-          // a corner.
-          //
-          // Only values strictly between 0 and 1 are affected either way, so
-          // fully synthesized and fully original audio are untouched.
-          constexpr float kQuarterTurn = 1.57079632679489662f;
           std::vector<float> targetSegment(samplesToWrite, 0.0f);
           for (int i = 0; i < samplesToWrite; ++i) {
             const float b =
                 (i < static_cast<int>(blendMask.size())) ? blendMask[i] : 0.0f;
             const float synth = synthesizedAudio[static_cast<size_t>(i)];
             const float orig = originalSegment[static_cast<size_t>(i)];
-            const float angle = b * kQuarterTurn;
-            const float synthGain = usePsola ? b : std::sin(angle);
-            const float origGain = usePsola ? (1.0f - b) : std::cos(angle);
             targetSegment[static_cast<size_t>(i)] =
-                synthGain * synth + origGain * orig;
+                b * synth + (1.0f - b) * orig;
           }
 
           // Use the same gain envelope as direct amplitude edits.

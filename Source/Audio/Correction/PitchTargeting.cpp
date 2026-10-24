@@ -63,11 +63,9 @@ std::vector<PitchTargetResult> computePitchTargets(
         //
         // This used to clamp instead, which is the worst of the three
         // options: the note was dragged as far as the ceiling allowed and
-        // left on no musical pitch at all, having paid the full cost of being
-        // re-rendered to get there. Measured on the user's own material, the
-        // moments that sounded worst were exactly these - moved 165 and 244
-        // cents, right up against a 2-semitone ceiling - while every note the
-        // correction left alone came back bit-faithful.
+        // left on no musical pitch at all - neither where it was sung nor
+        // where the guide is - having paid the full cost of being re-rendered
+        // to get there. That is wrong whatever it sounds like.
         if (std::abs(fullShift) > ceiling)
             continue;
 
