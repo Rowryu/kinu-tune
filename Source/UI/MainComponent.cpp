@@ -830,8 +830,16 @@ MainComponent::MainComponent(bool enableAudioDevice)
     if (project == nullptr)
       return report;
 
+    // Syllables the detector joined into one note are split first, so each
+    // gets its own grid line (each split is its own undo step).
+    if (params.mode == correction::TimingMode::Grid && params.splitSyllables)
+      report.syllablesSplit =
+          pianoRoll.splitNotesAtFrames(correction::planSyllableSplits(*project));
+
     std::vector<correction::TimingEdit> edits;
+    const int syllablesSplit = report.syllablesSplit;
     report = correction::planTimingCorrection(*project, guide, params, edits);
+    report.syllablesSplit = syllablesSplit;
     if (edits.empty())
       return report;
 

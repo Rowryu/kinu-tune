@@ -43,6 +43,11 @@ struct TimingCorrectionParams
 
     /// How close to a grid line counts as already correct, in frames.
     double gridToleranceFrames = 2.0;
+
+    /// Grid mode: before placing notes, split any note the detector made out
+    /// of several syllables sung on one pitch, so each syllable lands on its
+    /// own grid line rather than only the first. See findSyllableOnsets.
+    bool splitSyllables = true;
 };
 
 /// What one run did.
@@ -51,6 +56,7 @@ struct TimingReport
     int notesConsidered = 0;
     int notesMatched = 0;   ///< guide mode only
     int notesMoved = 0;
+    int syllablesSplit = 0; ///< grid mode with splitSyllables
     double largestShiftFrames = 0.0;
 };
 
@@ -77,6 +83,11 @@ struct TimingEdit
  * curves and keeps undo honest. This function computes and reports; it does
  * NOT write to the project.
  */
+/// Where to split notes into syllables before grid timing: (note index,
+/// frame) pairs in the note's destination frames, last first so splitting in
+/// order never shifts an index still to come.
+std::vector<std::pair<int, int>> planSyllableSplits(const Project& project);
+
 TimingReport planTimingCorrection(const Project& project,
                                   const std::vector<GuideNote>& guide,
                                   const TimingCorrectionParams& params,

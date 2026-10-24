@@ -38,6 +38,7 @@ set(PITCHNET_TEST_SOURCES
     TempoMapTests.cpp
     NoteCentreTests.cpp
     RetimeMappingTests.cpp
+    SyllableOnsetTests.cpp
     HarmonyIntervalTests.cpp
     HostSyncTempoTests.cpp
     NoteGainCurveTests.cpp

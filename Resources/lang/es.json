@@ -1,4 +1,5 @@
 {
+  "timing.split_syllables": "Separar primero sílabas unidas",
   "pitch_drawing.apply_prompt": "¿Aplicar la nueva curva de tono?",
   "canvas.pitch_drawing": "Dibujo",
   "canvas.select": "Seleccionar",

@@ -29,7 +29,7 @@ constexpr int kPreferredHeight =
     kCardPadY * 2 + kInnerPadY * 2 + kSectionLabelHeight + kRowGap +
     (kLabelledRow + kRowGap) * 2 +   // mode, grid
     (kLabelledRow + kRowGap) * 3 +   // strength, max shift, tolerance
-    (kToggleHeight + kRowGap) * 2 +  // note length, anchor
+    (kToggleHeight + kRowGap) * 3 +  // note length, anchor, syllables
     kButtonHeight + kRowGap +        // apply
     kLabelledRow + kRowGap +         // smoothing amount
     kButtonHeight + kRowGap + kStatusRowHeight;
@@ -90,6 +90,9 @@ TimingCorrectionPanel::TimingCorrectionPanel()
 
     anchorToggle.setToggleState(true, juce::dontSendNotification);
     addAndMakeVisible(anchorToggle);
+
+    syllableToggle.setToggleState(true, juce::dontSendNotification);
+    addAndMakeVisible(syllableToggle);
 
     applyButton.setColour(juce::TextButton::buttonColourId, APP_COLOR_SURFACE_ALT);
     applyButton.setColour(juce::TextButton::buttonOnColourId,
@@ -164,6 +167,7 @@ void TimingCorrectionPanel::refreshLocalisedText()
     toleranceLabel.setText(TR("timing.tolerance"), juce::dontSendNotification);
     lengthToggle.setButtonText(TR("timing.note_length"));
     anchorToggle.setButtonText(TR("timing.anchor_peak"));
+    syllableToggle.setButtonText(TR("timing.split_syllables"));
     applyButton.setButtonText(TR("timing.apply"));
     smoothLabel.setText(TR("timing.smooth"), juce::dontSendNotification);
     smoothButton.setButtonText(TR("timing.smooth_apply"));
@@ -266,6 +270,7 @@ void TimingCorrectionPanel::runCorrection()
     params.timing.maxShiftSeconds =
         static_cast<float>(maxShiftSlider.getValue());
     params.timing.correctNoteLength = lengthToggle.getToggleState();
+    params.splitSyllables = syllableToggle.getToggleState();
 
     const int gridId = gridBox.getSelectedId();
     const double fps = framesPerSecond();
@@ -390,6 +395,8 @@ void TimingCorrectionPanel::resized()
     lengthToggle.setBounds(bounds.removeFromTop(kToggleHeight));
     bounds.removeFromTop(kRowGap);
     anchorToggle.setBounds(bounds.removeFromTop(kToggleHeight));
+    bounds.removeFromTop(kRowGap);
+    syllableToggle.setBounds(bounds.removeFromTop(kToggleHeight));
     bounds.removeFromTop(kRowGap);
 
     applyButton.setBounds(bounds.removeFromTop(kButtonHeight));

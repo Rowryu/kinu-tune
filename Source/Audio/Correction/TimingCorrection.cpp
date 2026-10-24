@@ -73,6 +73,35 @@ std::vector<float> projectMidiPitch(const Project& project)
 }
 
 
+std::vector<std::pair<int, int>> planSyllableSplits(const Project& project)
+{
+    std::vector<std::pair<int, int>> splits;
+    const auto rms = projectRms(project);
+    const auto midiPitch = projectMidiPitch(project);
+    const auto& notes = project.getNotes();
+    for (int i = 0; i < static_cast<int>(notes.size()); ++i)
+    {
+        const Note& note = notes[static_cast<size_t>(i)];
+        if (note.isRest())
+            continue;
+        // Only notes still where they were recorded: the analysis arrays are
+        // in source frames, and a note already moved has two clocks.
+        if (note.getStartFrame() != note.getSrcStartFrame() ||
+            note.getEndFrame() != note.getSrcEndFrame())
+            continue;
+        for (const int frame : findSyllableOnsets(rms, midiPitch,
+                                                  note.getStartFrame(),
+                                                  note.getEndFrame()))
+            splits.emplace_back(i, frame);
+    }
+    std::sort(splits.begin(), splits.end(),
+              [](const auto& a, const auto& b) {
+                  return a.first != b.first ? a.first > b.first
+                                            : a.second > b.second;
+              });
+    return splits;
+}
+
 TimingReport planTimingCorrection(const Project& project,
                                   const std::vector<GuideNote>& guide,
                                   const TimingCorrectionParams& params,

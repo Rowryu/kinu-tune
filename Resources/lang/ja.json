@@ -340,6 +340,7 @@
   "midiguide.track_unreadable": "（ノートを読めません）",
   "midiguide.status_track_empty": "そのトラックに解析済みのノートがありません",
   "timing.title": "タイミング補正",
+  "timing.split_syllables": "つながった音節を分けてから合わせる",
   "timing.mode": "合わせる先",
   "timing.mode_guide": "ガイド",
   "timing.mode_grid": "グリッド(BPM)",

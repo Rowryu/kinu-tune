@@ -1,4 +1,5 @@
 {
+  "timing.split_syllables": "先拆分连在一起的音节",
   "pitch_drawing.apply_prompt": "应用新的音高曲线？",
   "canvas.pitch_drawing": "绘制",
   "canvas.select": "选择",

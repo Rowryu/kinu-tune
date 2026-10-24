@@ -321,6 +321,9 @@ public:
   /// set; a viewport the host restores afterwards overrides it.
   /// Draw notes where they were analysed, in the bypass colour.
   void setBypassed(bool bypassed);
+  /// Split notes at (note index, frame) pairs, ordered last first, each as
+  /// its own undoable split. Returns how many splits happened.
+  int splitNotesAtFrames(const std::vector<std::pair<int, int>> &splits);
   bool isBypassed() const { return bypassed; }
 
   void centreOnNotes();

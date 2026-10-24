@@ -112,6 +112,7 @@ private:
 
     StyledToggleButton lengthToggle;
     StyledToggleButton anchorToggle;
+    StyledToggleButton syllableToggle; // grid: split joined syllables first
 
     juce::Label smoothLabel;
     StyledSlider smoothSlider;

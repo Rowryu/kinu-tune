@@ -996,3 +996,9 @@ browser. Paraphrased takeaways and what they map to:
 - Video (2nd half): split syllables sung together into separate notes and snap
   each; tight "ん" endings matter. → next: detect syllable onsets inside a note
   (unvoiced run / RMS dip) and split there before grid timing.
+- **Syllable split before grid timing — done.** `findSyllableOnsets` (unvoiced
+  run ≥ 2 frames, or RMS dip to ≤ 45 % of the louder side; ≥ 9 frames from
+  edges/each other; tests/SyllableOnsetTests) → `planSyllableSplits` →
+  `PianoRollComponent::splitNotesAtFrames` (NoteSplitter, one undo per split),
+  run from the timing apply when grid mode and the new toggle
+  「つながった音節を分けてから合わせる」 (default on). Only notes not yet moved.

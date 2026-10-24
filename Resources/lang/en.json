@@ -342,6 +342,7 @@
   "midiguide.track_unreadable": "(notes unreadable)",
   "midiguide.status_track_empty": "That track has no analysed notes",
   "timing.title": "Timing Correction",
+  "timing.split_syllables": "Split joined syllables first",
   "timing.mode": "Align to",
   "timing.mode_guide": "Guide",
   "timing.mode_grid": "Grid (BPM)",

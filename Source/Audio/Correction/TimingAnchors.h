@@ -90,6 +90,23 @@ int rigidHeadFrames(const std::vector<float>& midiPitch,
                     int attackFrames = 3,
                     double maxShare = 0.4);
 
+/**
+ * Frames inside a note where a new syllable begins, so a note the detector
+ * made out of two syllables sung on one pitch can be split and each syllable
+ * placed on its own grid line.
+ *
+ * A boundary is the start of a short unvoiced run (a consonant between two
+ * vowels) or the bottom of an energy dip to `dipRatio` of the louder side.
+ * Boundaries keep `minSegmentFrames` from the note's edges and each other, so
+ * vibrato and ordinary loudness wobble are not mistaken for syllables.
+ */
+std::vector<int> findSyllableOnsets(const std::vector<float>& rms,
+                                    const std::vector<float>& midiPitch,
+                                    int startFrame,
+                                    int endFrame,
+                                    int minSegmentFrames = 9,
+                                    float dipRatio = 0.45f);
+
 int anchorFrameFor(const std::vector<float>& rms,
                    int startFrame,
                    int endFrame,

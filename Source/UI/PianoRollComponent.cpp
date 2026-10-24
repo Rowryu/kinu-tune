@@ -5121,3 +5121,26 @@ void PianoRollComponent::drawSelectionRect(juce::Graphics &g)
   g.setColour(juce::Colours::white.withAlpha(0.25f));
   g.drawRect(rect, 1.0f);
 }
+
+int PianoRollComponent::splitNotesAtFrames(
+    const std::vector<std::pair<int, int>> &splits)
+{
+  if (!project || !noteSplitter)
+    return 0;
+  int done = 0;
+  for (const auto &[index, frame] : splits)
+  {
+    auto &notes = project->getNotes();
+    if (index < 0 || index >= static_cast<int>(notes.size()))
+      continue;
+    if (noteSplitter->splitNoteAtFrame(&notes[static_cast<size_t>(index)], frame))
+      ++done;
+  }
+  if (done > 0)
+  {
+    dropTransientNotePointers();
+    updatePitchToolHandlesFromSelection();
+    repaint();
+  }
+  return done;
+}

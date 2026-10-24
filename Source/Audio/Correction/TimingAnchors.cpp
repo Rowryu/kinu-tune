@@ -230,6 +230,83 @@ double TimingGrid::snap(double frame) const
            std::round((frame - firstBeatFrame) / step) * step;
 }
 
+std::vector<int> findSyllableOnsets(const std::vector<float>& rms,
+                                    const std::vector<float>& midiPitch,
+                                    int startFrame,
+                                    int endFrame,
+                                    int minSegmentFrames,
+                                    float dipRatio)
+{
+    std::vector<int> onsets;
+    const int first = startFrame + minSegmentFrames;
+    const int last = endFrame - minSegmentFrames;
+    if (last <= first)
+        return onsets;
+
+    const auto voiced = [&](int f) {
+        return f >= 0 && f < static_cast<int>(midiPitch.size()) &&
+               midiPitch[static_cast<size_t>(f)] > 0.0f;
+    };
+    const auto level = [&](int f) {
+        return f >= 0 && f < static_cast<int>(rms.size())
+                   ? rms[static_cast<size_t>(f)] : 0.0f;
+    };
+    const auto peakIn = [&](int a, int b) {
+        float peak = 0.0f;
+        for (int f = std::max(a, startFrame); f < std::min(b, endFrame); ++f)
+            peak = std::max(peak, level(f));
+        return peak;
+    };
+
+    std::vector<int> candidates;
+
+    // A consonant between vowels: voiced, then at least two unvoiced frames,
+    // then voiced again. The boundary is where the voicing stopped.
+    if (!midiPitch.empty())
+    {
+        for (int f = first; f < last; ++f)
+        {
+            if (!voiced(f - 1) || voiced(f))
+                continue;
+            int g = f;
+            while (g < endFrame && !voiced(g))
+                ++g;
+            if (g - f >= 2 && g < endFrame)
+                candidates.push_back(f);
+            f = g;
+        }
+    }
+
+    // An energy dip between two louder stretches.
+    if (!rms.empty())
+    {
+        const int side = std::max(3, minSegmentFrames / 2);
+        for (int f = first; f < last; ++f)
+        {
+            const float here = level(f);
+            if (here > level(f - 1) || here > level(f + 1))
+                continue; // not a local minimum
+            const float before = peakIn(f - side, f);
+            const float after = peakIn(f + 1, f + 1 + side);
+            if (before <= 0.0f || after <= 0.0f)
+                continue;
+            if (here <= dipRatio * std::min(before, after))
+                candidates.push_back(f);
+        }
+    }
+
+    std::sort(candidates.begin(), candidates.end());
+    int previous = startFrame;
+    for (const int c : candidates)
+    {
+        if (c - previous < minSegmentFrames || endFrame - c < minSegmentFrames)
+            continue;
+        onsets.push_back(c);
+        previous = c;
+    }
+    return onsets;
+}
+
 int rigidHeadFrames(const std::vector<float>& midiPitch,
                     int startFrame,
                     int endFrame,
