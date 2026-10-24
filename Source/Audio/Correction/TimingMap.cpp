@@ -19,6 +19,9 @@ struct Anchor
     /// True for a note's start. Where two anchors land on the same source
     /// frame the onset is the one that survives; see collapseSharedFrames.
     bool isOnset = false;
+    /// Keeps exactly the shift of the anchor before it, whatever the rate
+    /// bounds did to that one: the span between them is copied at rate 1.
+    bool rigidWithPrevious = false;
 };
 
 /// How far a note may move, after strength, confidence and the ceiling.
@@ -105,6 +108,12 @@ void enforceRateBounds(std::vector<Anchor>& anchors, const TimingParams& params)
             continue;
         }
 
+        if (anchors[i].rigidWithPrevious)
+        {
+            anchors[i].output = anchors[i - 1].output + sourceStep;
+            continue;
+        }
+
         const double minOutputStep = sourceStep / maxRate;
         const double maxOutputStep = sourceStep / minRate;
 
@@ -161,6 +170,12 @@ TimingMap buildTimingMap(const std::vector<TimingTarget>& notes,
         }
 
         anchors.push_back({start, start + startShift, true});
+        // Consonant protection: a second anchor at the end of the head,
+        // shifted by the same amount, makes the head a rigid copy. Only when
+        // it leaves some of the note to stretch.
+        const double head = static_cast<double>(std::max(0, note.rigidHeadFrames));
+        if (head > 0.0 && start + head < end - 1.0)
+            anchors.push_back({start + head, start + head + startShift, false, true});
         anchors.push_back({end, end + endShift, false});
     }
 

@@ -979,3 +979,9 @@ browser. Paraphrased takeaways and what they map to:
   Stretching た/か-row consonants degrades them → split the consonant off
   first. → TODO: consonant protection in the timing map (rigid shift of
   onset→voiced-start, stretch absorbed by the previous vowel).
+- **Consonant protection — done.** `TimingTarget::rigidHeadFrames` (from
+  `rigidHeadFrames()`: frames to the first voiced frame + 3 attack, capped at
+  40 % of the note) adds an anchor flagged `rigidWithPrevious`; the rate
+  bounds keep it exactly at the onset's shift, so the head is copied at rate 1
+  and the stretch lands in the sustained vowel / previous tail. Test:
+  `testAConsonantHeadMovesRigidly`.

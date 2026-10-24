@@ -24,6 +24,13 @@ struct TimingTarget
     /// 0..1, from note matching. Scales the move like it scales pitch, so a
     /// doubtful match cannot yank a syllable across the bar.
     float confidence = 1.0f;
+
+    /// Frames after the start that move rigidly with it: the consonant and
+    /// the first moments of the vowel. Stretching a consonant smears it - a
+    /// "t" or "k" pulled longer stops sounding like one - so these frames
+    /// travel with the onset at their own rate, and whatever stretch the move
+    /// needs is taken by the sustained vowel instead. 0 = no protection.
+    int rigidHeadFrames = 0;
 };
 
 struct TimingParams

@@ -230,6 +230,36 @@ double TimingGrid::snap(double frame) const
            std::round((frame - firstBeatFrame) / step) * step;
 }
 
+int rigidHeadFrames(const std::vector<float>& midiPitch,
+                    int startFrame,
+                    int endFrame,
+                    int attackFrames,
+                    double maxShare)
+{
+    const int length = endFrame - startFrame;
+    if (length <= 2)
+        return 0;
+    int firstVoiced = startFrame;
+    if (!midiPitch.empty())
+    {
+        firstVoiced = endFrame;
+        for (int f = std::max(0, startFrame);
+             f < endFrame && f < static_cast<int>(midiPitch.size()); ++f)
+        {
+            if (midiPitch[static_cast<size_t>(f)] > 0.0f)
+            {
+                firstVoiced = f;
+                break;
+            }
+        }
+        if (firstVoiced >= endFrame)
+            firstVoiced = startFrame; // never voiced: protect just the attack
+    }
+    const int head = (firstVoiced - startFrame) + std::max(0, attackFrames);
+    const int cap = static_cast<int>(std::floor(length * std::clamp(maxShare, 0.0, 1.0)));
+    return std::clamp(head, 0, cap);
+}
+
 std::vector<TimingTarget> gridTimingTargets(
     const std::vector<SungNote>& notes,
     const std::vector<float>& rms,
@@ -249,6 +279,8 @@ std::vector<TimingTarget> gridTimingTargets(
         target.sourceStartFrame = note.startFrame;
         target.sourceEndFrame = note.endFrame;
         target.confidence = 1.0f;
+        target.rigidHeadFrames =
+            rigidHeadFrames(midiPitch, note.startFrame, note.endFrame);
 
         if (step <= 0.0 || note.endFrame <= note.startFrame)
         {
@@ -300,6 +332,8 @@ std::vector<TimingTarget> guidedTimingTargets(
         TimingTarget target;
         target.sourceStartFrame = note.startFrame;
         target.sourceEndFrame = note.endFrame;
+        target.rigidHeadFrames =
+            rigidHeadFrames(midiPitch, note.startFrame, note.endFrame);
 
         if (i >= matches.size() || !matches[i].isMatched() ||
             matches[i].guideIndex >= static_cast<int>(guide.size()) ||

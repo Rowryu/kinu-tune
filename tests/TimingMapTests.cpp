@@ -422,6 +422,39 @@ void testALegatoNeighbourIsNotWarpedToObey()
           "but it did not reach a target that would have warped its neighbour");
 }
 
+// Consonant protection. The second note is moved 30 frames late; its first 20
+// frames are its consonant and attack and must be copied at their own rate,
+// with the stretch taken elsewhere.
+void testAConsonantHeadMovesRigidly()
+{
+    std::printf("a protected head is moved without being stretched\n");
+
+    TimingParams params;
+    params.correctionStrength = 1.0f;
+    params.maxShiftSeconds = 2.0f;
+    params.correctNoteLength = false;
+
+    auto second = note(200, 300, 230.0, 330.0);
+    second.rigidHeadFrames = 20;
+    const std::vector<TimingTarget> notes = {note(100, 200, 100.0, 200.0), second};
+
+    const auto map = buildTimingMap(notes, kTakeFrames, params);
+    assertInvariants(map, params, kTakeFrames, "rigid head");
+
+    const double landed = map.noteStart[1];
+    check(landed > 200.0, "the note moved later");
+    bool rigid = true;
+    const int from = static_cast<int>(std::ceil(landed)) + 1;
+    for (int o = from; o < from + 18 && o + 1 < static_cast<int>(map.sourceFrame.size()); ++o)
+    {
+        const double step = map.sourceFrame[static_cast<size_t>(o + 1)] -
+                            map.sourceFrame[static_cast<size_t>(o)];
+        if (std::abs(step - 1.0) > 1e-6)
+            rigid = false;
+    }
+    check(rigid, "every frame of the head is copied at rate 1");
+}
+
 void testDegenerateInputs()
 {
     std::printf("degenerate inputs are handled\n");
@@ -462,6 +495,7 @@ int main()
     testAbuttingNotesPullingApart();
     testAbuttingNotesMovingTogether();
     testALegatoNeighbourIsNotWarpedToObey();
+    testAConsonantHeadMovesRigidly();
     testDegenerateInputs();
 
     std::printf("\n%d checks, %d failures\n", checks, failures);

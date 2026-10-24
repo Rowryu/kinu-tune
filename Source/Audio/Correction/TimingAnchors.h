@@ -78,6 +78,18 @@ int findPitchSettleFrame(const std::vector<float>& midiPitch,
                          float toleranceSemitones = 1.0f);
 
 /// Anchor frame of a note under the chosen rule.
+/**
+ * How many frames at the start of a note to keep rigid when it is moved: up
+ * to the first voiced frame (the consonant) plus a short attack, capped at
+ * `maxShare` of the note so there is always vowel left to take the stretch.
+ * With no pitch data, a fixed short attack.
+ */
+int rigidHeadFrames(const std::vector<float>& midiPitch,
+                    int startFrame,
+                    int endFrame,
+                    int attackFrames = 3,
+                    double maxShare = 0.4);
+
 int anchorFrameFor(const std::vector<float>& rms,
                    int startFrame,
                    int endFrame,
