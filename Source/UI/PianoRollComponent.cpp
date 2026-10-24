@@ -2962,6 +2962,15 @@ void PianoRollComponent::setProject(Project *proj)
   repaint();
 }
 
+void PianoRollComponent::setBypassed(bool shouldBypass)
+{
+  if (bypassed == shouldBypass)
+    return;
+  bypassed = shouldBypass;
+  noteRenderer->setShowOriginalPositions(bypassed);
+  repaint();
+}
+
 void PianoRollComponent::centreOnNotes()
 {
   // The canvas spans the whole MIDI range, and a sung take occupies a

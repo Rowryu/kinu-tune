@@ -967,6 +967,18 @@ bool PitchNetAudioProcessorEditor::tryAdoptAraRegion() {
 void PitchNetAudioProcessorEditor::timerCallback() {
   syncAAXARAPlayheadStateFromHost();
 
+  // Bypass is a host parameter: the DAW's own bypass button, automation, or
+  // the plug-in's switch all arrive the same way, and there is no callback
+  // for it. Polling it here costs an atomic load per tick and keeps the
+  // canvas honest about what is reaching the speakers.
+  if (mainView != nullptr) {
+    const bool bypassed = audioProcessor.isBypassEngaged();
+    if (bypassed != lastBypassState) {
+      lastBypassState = bypassed;
+      mainView->setBypassed(bypassed);
+    }
+  }
+
 #if JucePlugin_Enable_ARA
   // The AAX playhead sync needs 60 Hz; the region list does not. Divide down
   // rather than running a second timer.

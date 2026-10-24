@@ -46,6 +46,10 @@ public:
   // Inactive regions in Track mode: note bodies use a grey ramp (light along
   // the centre line, dark at the edges) instead of the pitch-accuracy colours.
   void setGreyscale(bool shouldUseGreyscale) { greyscale = shouldUseGreyscale; }
+  /// Draw every note where it was analysed - its source frames and the pitch
+  /// it was sung at - rather than where editing has put it. Used by bypass,
+  /// so what is on screen matches what is coming out of the speakers.
+  void setShowOriginalPositions(bool show) { showOriginalPositions = show; }
   // Pinned tracks: stroke each note body in this colour. Combine with
   // setFillBodies(false) to draw the outline on its own.
   void setOutlineColour(std::optional<juce::Colour> colour) { outlineColour = colour; }
@@ -76,6 +80,7 @@ private:
   Note *hoveredNote = nullptr;
   bool showNoteFramesDebug = false;
   bool greyscale = false;
+  bool showOriginalPositions = false;
   std::optional<juce::Colour> outlineColour;
   bool fillBodies = true;
   bool segmentStyle = true;

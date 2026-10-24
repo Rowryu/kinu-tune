@@ -290,6 +290,11 @@ public:
 
   // Parameter IDs (stable across versions for automation compatibility)
   static constexpr const char *PARAM_BYPASS = "bypass";
+  /// True while the host (or the plug-in's own switch) has bypass engaged.
+  /// The editor reads this to show the notes where they were analysed.
+  bool isBypassEngaged() const {
+    return bypassParamValue != nullptr && bypassParamValue->load() >= 0.5f;
+  }
   static constexpr const char *PARAM_OUTPUT_GAIN = "outputGain";
   static constexpr const char *PARAM_DRY_WET = "dryWet";
   static constexpr const char *PARAM_PITCH_OFFSET = "pitchOffset";

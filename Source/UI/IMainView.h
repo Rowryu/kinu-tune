@@ -202,4 +202,11 @@ public:
    * formant shift are changed via host automation.
    */
   virtual void triggerResynthesis() = 0;
+
+  /**
+   * Bypass is engaged or released. The canvas draws every note where it was
+   * analysed, in a colour of its own, so the picture agrees with what the
+   * speakers are doing instead of showing edits that are not being applied.
+   */
+  virtual void setBypassed(bool bypassed) = 0;
 };

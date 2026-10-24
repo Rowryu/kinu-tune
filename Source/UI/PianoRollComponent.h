@@ -319,6 +319,10 @@ public:
   /// Draw pinned tracks' waveforms behind this one, each in its own colour.
   /// Put the sung notes in the middle of the view. Called when a project is
   /// set; a viewport the host restores afterwards overrides it.
+  /// Draw notes where they were analysed, in the bypass colour.
+  void setBypassed(bool bypassed);
+  bool isBypassed() const { return bypassed; }
+
   void centreOnNotes();
   void setShowPinnedWaveforms(bool show);
   bool getShowPinnedWaveforms() const;
@@ -546,6 +550,7 @@ private:
   bool playbackActive = false;
   double &scrollX = viewState.scrollX;
   double &scrollY = viewState.scrollY;
+  bool bypassed = false;
 
   // Edit mode
   EditMode &editMode = viewState.editMode;

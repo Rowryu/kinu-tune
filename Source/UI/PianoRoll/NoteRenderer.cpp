@@ -267,9 +267,17 @@ void NoteRenderer::draw(juce::Graphics &g, Pass pass, bool splitModeActive,
 
     // Viewport culling: skip notes outside visible area. In segment style the
     // ghost of the original position counts too.
-    const double noteStartTime = framesToSeconds(note.getVisualStartFrame());
-    const double noteEndTime = framesToSeconds(note.getVisualEndFrame());
-    const bool ghostMayShow = segmentStyle && !greyscale;
+    // Under bypass the plug-in is passing the recording through untouched, so
+    // the notes are drawn where they were analysed rather than where editing
+    // has put them: the picture then matches what is being heard.
+    const double noteStartTime = framesToSeconds(
+        showOriginalPositions ? static_cast<float>(note.getSrcStartFrame())
+                              : note.getVisualStartFrame());
+    const double noteEndTime = framesToSeconds(
+        showOriginalPositions ? static_cast<float>(note.getSrcEndFrame())
+                              : note.getVisualEndFrame());
+    const bool ghostMayShow =
+        segmentStyle && !greyscale && !showOriginalPositions;
     const double cullStart = ghostMayShow
         ? std::min(noteStartTime, static_cast<double>(framesToSeconds(note.getSrcStartFrame())))
         : noteStartTime;
@@ -280,15 +288,23 @@ void NoteRenderer::draw(juce::Graphics &g, Pass pass, bool splitModeActive,
       continue;
 
     const float x = static_cast<float>(noteStartTime * pixelsPerSecond);
-    const float w = framesToSeconds(note.getVisualDurationFrames()) *
-                    pixelsPerSecond;
+    const float w =
+        framesToSeconds(showOriginalPositions
+                            ? static_cast<float>(note.getSrcEndFrame() -
+                                                 note.getSrcStartFrame())
+                            : note.getVisualDurationFrames()) *
+        pixelsPerSecond;
     const float h = pixelsPerSemitone;
     const float renderedWidth = std::max(w, 4.0f);
 
     // Position at grid cell center for MIDI note, then offset by pitch adjustment
     const float baseGridCenterY =
-        coordMapper->midiToY(note.getMidiNote()) + pixelsPerSemitone * 0.5f;
-    const float pitchOffsetPixels = -note.getPitchOffset() * pixelsPerSemitone;
+        coordMapper->midiToY(showOriginalPositions ? note.getOriginalMidiNote()
+                                                   : note.getMidiNote()) +
+        pixelsPerSemitone * 0.5f;
+    const float pitchOffsetPixels =
+        showOriginalPositions ? 0.0f
+                              : -note.getPitchOffset() * pixelsPerSemitone;
     const float y = baseGridCenterY + pitchOffsetPixels - h * 0.5f;
     const bool isPreviewPlaybackNote =
         previewPlaybackActive && note.getEndFrame() > previewStartFrame &&
@@ -326,8 +342,14 @@ void NoteRenderer::draw(juce::Graphics &g, Pass pass, bool splitModeActive,
 
     if (drawBodies)
     {
+      // Bypass gets a colour of its own - a muted blue-grey - so the state is
+      // readable at a glance and cannot be mistaken for an edit that simply
+      // did nothing.
       const NoteGradientColours noteColours =
-          greyscale
+          showOriginalPositions
+              ? NoteGradientColours{juce::Colour(0xFF7E8C9Au),
+                                    juce::Colour(0xFF2B3238u)}
+          : greyscale
               ? NoteGradientColours{juce::Colour(0xFFCCCCCCu),
                                     juce::Colour(0xFF3A3A3Au)}
               : getNoteGradientColours(note.getAdjustedMidiNote(),
@@ -363,7 +385,8 @@ void NoteRenderer::draw(juce::Graphics &g, Pass pass, bool splitModeActive,
         endSample = std::max(startSample + 1, std::min(endSample, totalSamples));
       }
 
-      if (segmentStyle && !greyscale && drawBodies && !drawHoveredBody)
+      if (segmentStyle && !greyscale && !showOriginalPositions && drawBodies &&
+          !drawHoveredBody)
       {
         // Ghost of the original segment: its original pitch curve where it
         // was analysed (timing and pitch), faint grey, so an edited segment

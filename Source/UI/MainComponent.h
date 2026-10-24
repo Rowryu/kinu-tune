@@ -302,7 +302,8 @@ public:
   void updateHostLoopRange(double startSeconds, double endSeconds,
                            bool enabled, bool hasRange) override;
   void notifyHostStopped() override; // Called when host stops playback
-  void triggerResynthesis() override; // Triggered by DAW parameter automation
+  void triggerResynthesis() override;
+  void setBypassed(bool bypassed) override; // Triggered by DAW parameter automation
 
 private:
   // tests/AuditionHandoffTests.cpp drives the audition hand-offs directly.

@@ -109,6 +109,7 @@ private:
 
     PitchNetAudioProcessor& audioProcessor;
     std::unique_ptr<IMainView> mainView;
+    bool lastBypassState = false;
     double lastSyncedHostPlayheadSeconds = 0.0;
     bool lastSyncedHostPlayState = false;
     bool hasSyncedHostPlayhead = false;

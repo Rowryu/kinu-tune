@@ -3109,6 +3109,10 @@ void MainComponent::setHostBpmProvider(std::function<double()> getBpm)
   panel.refreshGuideSources();
 }
 
+void MainComponent::setBypassed(bool bypassed) {
+  pianoRoll.setBypassed(bypassed);
+}
+
 void MainComponent::setHostTempoMapProvider(
     std::function<std::vector<correction::TempoPoint>()> getTempoMap) {
   variAudioInspector.getTimingPanel().getHostTempoMap = std::move(getTempoMap);
