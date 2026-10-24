@@ -1,0 +1,5 @@
+Commit: 859d288e4f3f7099f4ed7f774b6aa22003594307
+Run: 40103292693
+DirectML: true
+Diagnostics: false
+Zip: Kisyo-Tune-test-859d288e-dml-Windows-x64-plugin-only.zip
