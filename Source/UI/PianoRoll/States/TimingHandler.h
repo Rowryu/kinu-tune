@@ -20,7 +20,7 @@ public:
   void mouseMove(const juce::MouseEvent& e, float worldX,
                  float worldY) override;
   void draw(juce::Graphics& g) override;
-  bool isActive() const override { return dragging || selecting; }
+  bool isActive() const override { return dragging || selecting || pitchNote; }
   void cancel() override;
 
 private:
@@ -74,4 +74,10 @@ private:
   float selectionCurrentX = 0.0f;
   bool dragging = false;
   bool selecting = false;
+  // Light pitch editing inside the timing tool: a vertical drag on a segment
+  // body (away from its boundaries) moves it by whole semitones. Previewed as
+  // an outline, committed on release as one undoable step.
+  Note* pitchNote = nullptr;
+  float pitchDragStartY = 0.0f;
+  int pitchDragSemitones = 0;
 };

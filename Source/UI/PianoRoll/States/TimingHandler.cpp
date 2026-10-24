@@ -4,10 +4,12 @@
 #include "../../../Utils/Constants.h"
 #include "../../../Utils/TimingRegionUtils.h"
 #include "../../../Utils/UI/Theme.h"
+#include "../../Components/AppFont.h"
 
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <optional>
 
 TimingHandler::TimingHandler(PianoRollComponent& owner)
     : InteractionHandler(owner) {}
@@ -343,6 +345,17 @@ bool TimingHandler::mouseDown(const juce::MouseEvent& e, float worldX,
 
   const auto boundaries = buildBoundaries();
   const int index = findBoundary(worldX, worldY, boundaries);
+  if (index < 0 && !e.mods.isShiftDown())
+  {
+    if (auto* note = owner_.findNoteAt(worldX, worldY))
+    {
+      pitchNote = note;
+      pitchDragStartY = worldY;
+      pitchDragSemitones = 0;
+      owner_.repaint();
+      return true;
+    }
+  }
   if (index < 0)
   {
     selecting = true;
@@ -377,8 +390,19 @@ bool TimingHandler::mouseDown(const juce::MouseEvent& e, float worldX,
   return true;
 }
 
-bool TimingHandler::mouseDrag(const juce::MouseEvent&, float worldX, float)
+bool TimingHandler::mouseDrag(const juce::MouseEvent&, float worldX, float worldY)
 {
+  if (pitchNote)
+  {
+    const int semitones = static_cast<int>(std::lround(
+        (pitchDragStartY - worldY) / std::max(1.0f, owner_.pixelsPerSemitone)));
+    if (semitones != pitchDragSemitones)
+    {
+      pitchDragSemitones = semitones;
+      owner_.repaint();
+    }
+    return true;
+  }
   if (selecting)
   {
     updateMarqueeSelection(worldX);
@@ -397,6 +421,20 @@ bool TimingHandler::mouseDrag(const juce::MouseEvent&, float worldX, float)
 
 bool TimingHandler::mouseUp(const juce::MouseEvent&, float, float)
 {
+  if (pitchNote)
+  {
+    auto* note = pitchNote;
+    const int semitones = pitchDragSemitones;
+    pitchNote = nullptr;
+    pitchDragSemitones = 0;
+    if (semitones != 0)
+      owner_.shiftNotesBySemitones(
+          {note}, [semitones](const Note&) -> std::optional<float> {
+            return static_cast<float>(semitones);
+          });
+    owner_.repaint();
+    return true;
+  }
   if (selecting)
   {
     selecting = false;
@@ -478,6 +516,7 @@ void TimingHandler::mouseMove(const juce::MouseEvent& e, float worldX,
 
   const auto boundaries = buildBoundaries();
   const int index = findBoundary(worldX, worldY, boundaries);
+  const bool overBody = index < 0 && owner_.findNoteAt(worldX, worldY) != nullptr;
   const float nextHover = index >= 0
                               ? boundaries[static_cast<size_t>(index)].frame
                               : -1.0f;
@@ -486,9 +525,9 @@ void TimingHandler::mouseMove(const juce::MouseEvent& e, float worldX,
     hoveredBoundaryFrame = nextHover;
     owner_.repaint();
   }
-  owner_.setMouseCursor(index >= 0
-                            ? juce::MouseCursor::LeftRightResizeCursor
-                            : juce::MouseCursor::NormalCursor);
+  owner_.setMouseCursor(index >= 0 ? juce::MouseCursor::LeftRightResizeCursor
+                        : overBody  ? juce::MouseCursor::UpDownResizeCursor
+                                    : juce::MouseCursor::NormalCursor);
 }
 
 void TimingHandler::draw(juce::Graphics& g)
@@ -511,6 +550,24 @@ void TimingHandler::draw(juce::Graphics& g)
     g.fillRect(x - width * 0.5f, 0.0f, width, canvasHeight);
   }
 
+  if (pitchNote && pitchDragSemitones != 0)
+  {
+    const float left = static_cast<float>(
+        framesToSeconds(pitchNote->getStartFrame()) * owner_.pixelsPerSecond);
+    const float right = static_cast<float>(
+        framesToSeconds(pitchNote->getEndFrame()) * owner_.pixelsPerSecond);
+    const float top = owner_.midiToY(pitchNote->getAdjustedMidiNote() +
+                                     static_cast<float>(pitchDragSemitones));
+    g.setColour(juce::Colours::white.withAlpha(0.18f));
+    g.fillRect(left, top, std::max(2.0f, right - left), owner_.pixelsPerSemitone);
+    g.setColour(juce::Colours::white.withAlpha(0.9f));
+    g.drawRect(left, top, std::max(2.0f, right - left), owner_.pixelsPerSemitone, 1.0f);
+    g.setFont(AppFont::getFont(12));
+    g.drawText((pitchDragSemitones > 0 ? "+" : "") + juce::String(pitchDragSemitones),
+               juce::Rectangle<float>(left, top - 16.0f, 48.0f, 14.0f),
+               juce::Justification::centredLeft);
+  }
+
   if (selecting)
   {
     const float left = std::min(selectionStartX, selectionCurrentX);
@@ -528,6 +585,8 @@ void TimingHandler::cancel()
     clearAffectedPreviews();
   dragging = false;
   selecting = false;
+  pitchNote = nullptr;
+  pitchDragSemitones = 0;
   before.clear();
   dragBoundaries.clear();
   selectedBoundaries.clear();
