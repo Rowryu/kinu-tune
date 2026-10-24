@@ -2,6 +2,7 @@
 #include "../../Utils/Constants.h"
 #include "../../Utils/UI/TimecodeFont.h"
 #include "../../Utils/UI/Theme.h"
+#include "../Components/AppFont.h"
 
 void TimelineRenderer::drawTimeline(juce::Graphics &g, const TimelineParams &params)
 {
@@ -19,6 +20,26 @@ void TimelineRenderer::drawTimeline(juce::Graphics &g, const TimelineParams &par
   auto timelineArea = juce::Rectangle<int>(
       pianoKeysWidth, 0, params.componentWidth - pianoKeysWidth - scrollBarSize,
       timelineHeight);
+
+  // The strip above the piano keys is otherwise empty, and it is where a DAW
+  // puts this: the grid the canvas is snapping to, readable at a glance.
+  {
+    juce::Graphics::ScopedSaveState cornerState(g);
+    const auto corner =
+        juce::Rectangle<int>(0, 0, pianoKeysWidth, timelineHeight);
+    g.reduceClipRegion(corner);
+    g.setColour(juce::Colour(0xFF232323u));
+    g.fillRect(corner);
+    g.setColour(juce::Colour(0xFF0D0B0Bu));
+    g.drawLine(0.0f, static_cast<float>(timelineHeight),
+               static_cast<float>(pianoKeysWidth),
+               static_cast<float>(timelineHeight), 1.0f);
+    g.setColour(markerTextColour);
+    g.setFont(AppFont::getFont(11.0f));
+    g.drawFittedText(juce::String("1/") + juce::String(params.gridDivision),
+                     corner.reduced(6, 0), juce::Justification::centredRight,
+                     1, 1.0f);
+  }
 
   juce::Graphics::ScopedSaveState savedState(g);
   g.reduceClipRegion(timelineArea);

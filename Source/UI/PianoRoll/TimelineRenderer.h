@@ -21,6 +21,10 @@ public:
     double beatSeconds;
     double barSeconds;
     int componentWidth;
+    /// Grid lines per whole note, as the canvas is snapping: 4 is a quarter,
+    /// 16 a sixteenth. Shown in the corner beside the ruler so the setting is
+    /// readable without opening the menu that holds it.
+    int gridDivision = 4;
   };
 
   struct LoopParams

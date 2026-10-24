@@ -317,6 +317,9 @@ public:
   // or dragging the note under the pointer).
   void setRegionPreviews(MainViewRegionPreviewList previews);
   /// Draw pinned tracks' waveforms behind this one, each in its own colour.
+  /// Put the sung notes in the middle of the view. Called when a project is
+  /// set; a viewport the host restores afterwards overrides it.
+  void centreOnNotes();
   void setShowPinnedWaveforms(bool show);
   bool getShowPinnedWaveforms() const;
   std::function<void(const juce::String &)> onInactiveRegionClicked;

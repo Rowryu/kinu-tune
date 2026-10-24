@@ -1471,6 +1471,7 @@ void PianoRollComponent::drawTimeline(juce::Graphics &g)
   params.beatSeconds = getTimelineBeatSeconds();
   params.barSeconds = getTimelineBarSeconds();
   params.componentWidth = getWidth();
+  params.gridDivision = static_cast<int>(timelineGridDivision);
   timelineRenderer->drawTimeline(g, params);
 }
 
@@ -2957,7 +2958,40 @@ void PianoRollComponent::setProject(Project *proj)
   updatePitchToolHandlesFromSelection();
 
   updateScrollBars();
+  centreOnNotes();
   repaint();
+}
+
+void PianoRollComponent::centreOnNotes()
+{
+  // The canvas spans the whole MIDI range, and a sung take occupies a
+  // couple of octaves of it. Left where it was, the view opens on whatever
+  // part of that range it happened to be showing, which is usually not the
+  // part with the singing in it - the complaint is having to hunt for the
+  // notes every time a region is opened.
+  //
+  // A viewport the host restores afterwards still wins: restoreViewportState
+  // runs after setProject and sets its own scroll.
+  if (project == nullptr)
+    return;
+
+  float lowest = std::numeric_limits<float>::max();
+  float highest = std::numeric_limits<float>::lowest();
+  for (const auto &note : project->getNotes())
+  {
+    if (note.isRest())
+      continue;
+    const float midi = note.getAdjustedMidiNote();
+    lowest = std::min(lowest, midi);
+    highest = std::max(highest, midi);
+  }
+  if (lowest > highest)
+    return; // nothing analysed yet; leave the view alone
+
+  const double centreMidi = 0.5 * (static_cast<double>(lowest) +
+                                   static_cast<double>(highest));
+  const double centreY = coordMapper->midiToY(static_cast<float>(centreMidi));
+  setScrollY(centreY - getVisibleContentHeight() * 0.5);
 }
 
 void PianoRollComponent::beginLiveRecordingWaveform(
