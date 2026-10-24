@@ -932,3 +932,23 @@ VariAudio と同じく「掴んでドラッグする」もので、モードで�
   (a) そのスマートコントロールを出す／全部出す
   (b) 現在値で一発適用する（平坦化は `inspector.flatten_curve` があるので可能）
   (c) ドラッグの対象を切り替えるモードにする
+
+## 38. UI batch, 2026-10-24 (user away, option ①)
+
+- **Smart controls at any zoom.** With Show All (default on) a segment too small
+  for corner controls gets every control in a strip: above = tilt L, straighten,
+  drift, tilt R; below = formant, correct pitch, volume. Pitch drift finally has
+  a handle (it had a drag but was never placed). Without Show All the old
+  "zoom in first" rule stands. Tests: VariAudioControlTests.
+- **Right-click menu**: three text rows ドリフト / 平坦化 / 音量 under すべて選択.
+  Picking one switches to Select and arms `armedSmartControl`; a plain vertical
+  drag on any segment then drives that control via
+  `PitchToolController::beginDrag` (same group-edit and undo as the handle).
+  Any edit-mode change disarms. Cursor is up/down over segments while armed.
+- **Timing tool pitch edit**: vertical drag on a segment body (not a boundary)
+  previews an outline with +N and commits whole semitones on release through
+  `shiftNotesBySemitones` (one undo step).
+- **Toolbar bypass**: power icon at the end of the transport capsule
+  (Resources/images/bypass.png, generated). Sets the `bypass` APVTS parameter
+  with a gesture; the editor timer's poll drives both the canvas and the
+  button state, so host bypass and this switch stay in step.
