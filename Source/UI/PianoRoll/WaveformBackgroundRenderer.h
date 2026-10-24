@@ -66,6 +66,18 @@ public:
     regionPreviews = std::move(previews);
     invalidateCache();
   }
+  // Draw the waveform of pinned tracks behind this one, each in its own track
+  // colour. A pinned track is already the user saying "show me this one next
+  // to mine"; its notes have always been drawn, and its audio is the thing
+  // you line a take up against by eye.
+  void setShowPinnedWaveforms(bool show)
+  {
+    if (show == showPinnedWaveforms)
+      return;
+    showPinnedWaveforms = show;
+    invalidateCache();
+  }
+  bool getShowPinnedWaveforms() const { return showPinnedWaveforms; }
   void beginLiveWaveform(double sampleRate, double timelineOffsetSeconds);
   void appendLiveWaveform(const juce::AudioBuffer<float> &buffer);
 
@@ -85,6 +97,7 @@ private:
   std::optional<std::pair<double, double>> projectDrawRange;
   PitchToolController* pitchToolController = nullptr;
   bool cachedAmplitudePreview = false;
+  bool showPinnedWaveforms = true;
 
   juce::Image waveformCache;
   // Left edge of the cached strip, in world pixels at cachedPixelsPerSecond.

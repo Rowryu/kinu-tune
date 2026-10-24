@@ -28,12 +28,20 @@ TrackListPanel::TrackListPanel()
     useDawColourToggle.setToggleState(useDawTrackColour, juce::dontSendNotification);
     useDawColourToggle.addListener(this);
     addAndMakeVisible(useDawColourToggle);
+
+    showPinnedWaveformToggle.setClickingTogglesState(true);
+    showPinnedWaveformToggle.setToggleState(showPinnedWaveforms,
+                                            juce::dontSendNotification);
+    showPinnedWaveformToggle.addListener(this);
+    addAndMakeVisible(showPinnedWaveformToggle);
+
     refreshLocalisedText();
 }
 
 void TrackListPanel::refreshLocalisedText()
 {
     useDawColourToggle.setTitle(TR("panel.use_daw_track_color"));
+    showPinnedWaveformToggle.setTitle(TR("panel.show_pinned_waveforms"));
     for (auto& button : pinButtons)
         button->setTooltip(TR("tooltip.reference_track"));
     repaint();
@@ -46,15 +54,31 @@ void TrackListPanel::setUseDawTrackColour(bool use)
     repaint();
 }
 
+void TrackListPanel::setShowPinnedWaveforms(bool show)
+{
+    showPinnedWaveforms = show;
+    showPinnedWaveformToggle.setToggleState(show, juce::dontSendNotification);
+    repaint();
+}
+
 void TrackListPanel::buttonClicked(juce::Button* button)
 {
-    if (button != &useDawColourToggle)
+    if (button == &useDawColourToggle)
+    {
+        useDawTrackColour = useDawColourToggle.getToggleState();
+        repaint();
+        if (onUseDawTrackColourChanged)
+            onUseDawTrackColourChanged(useDawTrackColour);
         return;
+    }
 
-    useDawTrackColour = useDawColourToggle.getToggleState();
-    repaint();
-    if (onUseDawTrackColourChanged)
-        onUseDawTrackColourChanged(useDawTrackColour);
+    if (button == &showPinnedWaveformToggle)
+    {
+        showPinnedWaveforms = showPinnedWaveformToggle.getToggleState();
+        repaint();
+        if (onShowPinnedWaveformsChanged)
+            onShowPinnedWaveformsChanged(showPinnedWaveforms);
+    }
 }
 
 juce::Colour TrackListPanel::colourFor(const MainViewTrackEntry& track) const
@@ -134,6 +158,16 @@ juce::Rectangle<int> TrackListPanel::switchLabelBounds() const
     return switchRowBounds().withTrimmedLeft(switchLabelX);
 }
 
+juce::Rectangle<int> TrackListPanel::waveformSwitchRowBounds() const
+{
+    return switchRowBounds().translated(0, switchRowHeight);
+}
+
+juce::Rectangle<int> TrackListPanel::waveformSwitchLabelBounds() const
+{
+    return waveformSwitchRowBounds().withTrimmedLeft(switchLabelX);
+}
+
 void TrackListPanel::resized()
 {
     const auto row = switchRowBounds();
@@ -143,6 +177,10 @@ void TrackListPanel::resized()
     useDawColourToggle.setBounds(row.withWidth(switchWidth)
                                      .withSizeKeepingCentre(switchWidth, 24)
                                      .translated(-3, 0));
+    const auto waveformRow = waveformSwitchRowBounds();
+    showPinnedWaveformToggle.setBounds(waveformRow.withWidth(switchWidth)
+                                           .withSizeKeepingCentre(switchWidth, 24)
+                                           .translated(-3, 0));
 }
 
 int TrackListPanel::rowAt(juce::Point<int> position) const
@@ -162,7 +200,8 @@ void TrackListPanel::mouseMove(const juce::MouseEvent& e)
 {
     const int index = rowAt(e.getPosition());
     const bool clickable = (index >= 0 && tracks[static_cast<size_t>(index)].key != activeKey)
-                           || switchLabelBounds().contains(e.getPosition());
+                           || switchLabelBounds().contains(e.getPosition())
+                           || waveformSwitchLabelBounds().contains(e.getPosition());
     setMouseCursor(clickable ? juce::MouseCursor::PointingHandCursor
                              : juce::MouseCursor::NormalCursor);
 }
@@ -181,6 +220,11 @@ void TrackListPanel::mouseUp(const juce::MouseEvent& e)
     if (switchLabelBounds().contains(e.getPosition()))
     {
         useDawColourToggle.triggerClick();
+        return;
+    }
+    if (waveformSwitchLabelBounds().contains(e.getPosition()))
+    {
+        showPinnedWaveformToggle.triggerClick();
         return;
     }
 
@@ -220,7 +264,7 @@ void TrackListPanel::setTracks(const std::vector<MainViewTrackEntry>& newTracks,
 
 int TrackListPanel::getPreferredHeight() const
 {
-    return rowsHeight() + switchGap + switchRowHeight;
+    return rowsHeight() + switchGap + switchRowHeight * 2;
 }
 
 void TrackListPanel::paint(juce::Graphics& g)
@@ -230,6 +274,9 @@ void TrackListPanel::paint(juce::Graphics& g)
     g.setFont(AppFont::getFont(14.0f));
     g.setColour(APP_COLOR_TEXT_PRIMARY);
     g.drawFittedText(TR("panel.use_daw_track_color"), switchLabelBounds(),
+                     juce::Justification::centredLeft, 2, 1.0f);
+    g.drawFittedText(TR("panel.show_pinned_waveforms"),
+                     waveformSwitchLabelBounds(),
                      juce::Justification::centredLeft, 2, 1.0f);
 
     const auto font = AppFont::getFont(13.0f);

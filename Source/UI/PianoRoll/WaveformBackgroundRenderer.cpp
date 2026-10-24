@@ -62,8 +62,9 @@ void WaveformBackgroundRenderer::draw(juce::Graphics &g,
   bool drawingPreviews = false;
   if (regionPreviews)
     for (const auto &region : *regionPreviews)
-      if (!region.active && region.waveformSamples &&
-          !region.waveformSamples->empty() && region.waveformSampleRate > 0.0)
+      if (!region.active && (showPinnedWaveforms || !region.pinned) &&
+          region.waveformSamples && !region.waveformSamples->empty() &&
+          region.waveformSampleRate > 0.0)
         drawingPreviews = true;
   if (!drawingLive && !drawingProject && !drawingPreviews)
     return;
@@ -145,13 +146,19 @@ void WaveformBackgroundRenderer::draw(juce::Graphics &g,
   const int visibleWidth = stripWidth;
   const double scrollX = static_cast<double>(stripStart);
 
+  // The take's own audio is drawn in the neutral canvas white. A pinned
+  // track is drawn in its own colour instead, so two waveforms behind one set
+  // of notes stay tellable apart.
+  const juce::Colour ownColour = juce::Colours::white.withAlpha(0.05f);
+
   auto drawWaveform = [&](const float *samples, int numSamples,
                           double sampleRate, double timelineOffset,
                           bool previewGain,
                           double clipStartSeconds =
                               std::numeric_limits<double>::lowest(),
                           double clipEndSeconds =
-                              std::numeric_limits<double>::max()) {
+                              std::numeric_limits<double>::max(),
+                          juce::Colour colour = juce::Colour()) {
     if (samples == nullptr || numSamples <= 0 || sampleRate <= 0.0)
       return;
 
@@ -225,18 +232,30 @@ void WaveformBackgroundRenderer::draw(juce::Graphics &g,
 
     waveformPath.closeSubPath();
 
-    cacheGraphics.setColour(juce::Colours::white.withAlpha(0.05f));
+    cacheGraphics.setColour(colour.isTransparent() ? ownColour : colour);
     cacheGraphics.fillPath(waveformPath);
   };
 
-  // Inactive regions of the track: same envelope, same colour.
-  if (drawingPreviews)
+  // Pinned tracks first, so this track's own audio reads on top of them.
+  if (drawingPreviews && showPinnedWaveforms)
     for (const auto &region : *regionPreviews)
-      if (!region.active && region.waveformSamples)
+      if (region.pinned && region.waveformSamples)
         drawWaveform(region.waveformSamples->data(),
                      static_cast<int>(region.waveformSamples->size()),
                      region.waveformSampleRate,
                      // Previews are in host time; the canvas in project time.
+                     coordMapper->timelineToProject(region.waveformStartSeconds),
+                     false, std::numeric_limits<double>::lowest(),
+                     std::numeric_limits<double>::max(),
+                     region.outlineColour.withAlpha(0.14f));
+
+  // Inactive regions of the track: same envelope, same colour.
+  if (drawingPreviews)
+    for (const auto &region : *regionPreviews)
+      if (!region.active && !region.pinned && region.waveformSamples)
+        drawWaveform(region.waveformSamples->data(),
+                     static_cast<int>(region.waveformSamples->size()),
+                     region.waveformSampleRate,
                      coordMapper->timelineToProject(region.waveformStartSeconds),
                      false);
 
@@ -317,9 +336,11 @@ float WaveformBackgroundRenderer::envelopeAt(double projectSeconds) const
                                     projectDrawRange ? projectDrawRange->first : lowest,
                                     projectDrawRange ? projectDrawRange->second : highest));
   }
+  // Pinned tracks are deliberately left out: this answers "is there audio of
+  // MINE here", and another track's waveform is not an answer to that.
   if (regionPreviews)
     for (const auto &region : *regionPreviews)
-      if (!region.active && region.waveformSamples)
+      if (!region.active && !region.pinned && region.waveformSamples)
         level = std::max(level, levelOf(region.waveformSamples->data(),
                                         static_cast<int>(region.waveformSamples->size()),
                                         region.waveformSampleRate,

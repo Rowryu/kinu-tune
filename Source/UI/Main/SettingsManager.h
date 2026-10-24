@@ -127,6 +127,8 @@ public:
   // Track list: colour rows with the DAW's track colour, or the default.
   bool getUseDawTrackColour() const { return useDawTrackColour; }
   void setUseDawTrackColour(bool use) { useDawTrackColour = use; }
+  bool getShowPinnedWaveforms() const { return showPinnedWaveforms; }
+  void setShowPinnedWaveforms(bool show) { showPinnedWaveforms = show; }
   void setShowDeltaPitch(bool show) { showDeltaPitch = show; }
   void setShowBasePitch(bool show) { showBasePitch = show; }
   void setShowSegmentsDebug(bool show) { showSegmentsDebug = show; }
@@ -177,6 +179,7 @@ private:
   // ARA starts in Track mode unless the user saved a different preference.
   bool trackViewMode = true;
   bool useDawTrackColour = true;
+  bool showPinnedWaveforms = true;
   bool showDeltaPitch = true;
   bool showBasePitch = false;
   bool showSegmentsDebug = false;

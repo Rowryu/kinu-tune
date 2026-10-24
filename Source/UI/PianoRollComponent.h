@@ -316,6 +316,9 @@ public:
   // synchronously, the same click continues into the new region (selecting
   // or dragging the note under the pointer).
   void setRegionPreviews(MainViewRegionPreviewList previews);
+  /// Draw pinned tracks' waveforms behind this one, each in its own colour.
+  void setShowPinnedWaveforms(bool show);
+  bool getShowPinnedWaveforms() const;
   std::function<void(const juce::String &)> onInactiveRegionClicked;
 
 private:

@@ -275,6 +275,9 @@ void SettingsManager::loadConfig()
         if (configObj->hasProperty("useDawTrackColour"))
           useDawTrackColour =
               static_cast<bool>(configObj->getProperty("useDawTrackColour"));
+        if (configObj->hasProperty("showPinnedWaveforms"))
+          showPinnedWaveforms =
+              static_cast<bool>(configObj->getProperty("showPinnedWaveforms"));
         if (configObj->hasProperty("liveAuditionEnabled"))
           liveAuditionEnabled =
               static_cast<bool>(configObj->getProperty("liveAuditionEnabled"));
@@ -323,6 +326,7 @@ void SettingsManager::saveConfig()
   config->setProperty("overviewVisible", overviewVisible);
   config->setProperty("trackViewMode", trackViewMode);
   config->setProperty("useDawTrackColour", useDawTrackColour);
+  config->setProperty("showPinnedWaveforms", showPinnedWaveforms);
   config->setProperty("showDeltaPitch", showDeltaPitch);
   config->setProperty("showBasePitch", showBasePitch);
   config->setProperty("showSegmentsDebug", showSegmentsDebug);

@@ -22,7 +22,10 @@
  * canvas. The active track's pin is always off and disabled.
  *
  * Below the rows, a "Use DAW Track Color" switch. Off - or when the DAW sent
- * no colour - rows use the default colour instead.
+ * no colour - rows use the default colour instead. Under it, a switch for
+ * drawing pinned tracks' waveforms on the canvas: a pinned track's notes are
+ * always drawn, and its audio is what you line a take up against by eye, but
+ * several waveforms at once can be more than you want to look at.
  */
 class TrackListPanel : public juce::Component,
                        public PanelContent,
@@ -36,6 +39,9 @@ public:
 
     void setUseDawTrackColour(bool use);
     bool getUseDawTrackColour() const { return useDawTrackColour; }
+
+    void setShowPinnedWaveforms(bool show);
+    bool getShowPinnedWaveforms() const { return showPinnedWaveforms; }
 
     int getPreferredHeight() const override;
     void paint(juce::Graphics& g) override;
@@ -52,6 +58,9 @@ public:
 
     /** Fired when the user flips the "Use DAW Track Color" switch. */
     std::function<void(bool)> onUseDawTrackColourChanged;
+
+    /** Fired when the user flips the pinned-waveform switch. */
+    std::function<void(bool)> onShowPinnedWaveformsChanged;
 
     /** Fired when the number of rows changes, so the panel can re-measure. */
     std::function<void()> onPreferredHeightChanged;
@@ -72,6 +81,8 @@ private:
     int rowsHeight() const;
     juce::Rectangle<int> switchRowBounds() const;
     juce::Rectangle<int> switchLabelBounds() const;
+    juce::Rectangle<int> waveformSwitchRowBounds() const;
+    juce::Rectangle<int> waveformSwitchLabelBounds() const;
     juce::Colour colourFor(const MainViewTrackEntry& track) const;
     void buttonClicked(juce::Button* button) override;
     void refreshLocalisedText();
@@ -83,6 +94,8 @@ private:
     juce::String activeKey;
     bool useDawTrackColour = true;
     StyledToggleButton useDawColourToggle;
+    bool showPinnedWaveforms = true;
+    StyledToggleButton showPinnedWaveformToggle;
     juce::Image pinImage;
     std::vector<std::unique_ptr<ToggleButton>> pinButtons; // one per row
 

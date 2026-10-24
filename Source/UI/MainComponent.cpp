@@ -976,6 +976,16 @@ MainComponent::MainComponent(bool enableAudioDevice)
       onTrackColourModeChanged();
   };
 
+  pianoRoll.setShowPinnedWaveforms(settingsManager->getShowPinnedWaveforms());
+  trackListPanel.setShowPinnedWaveforms(
+      settingsManager->getShowPinnedWaveforms());
+  trackListPanel.onShowPinnedWaveformsChanged = [this](bool show)
+  {
+    settingsManager->setShowPinnedWaveforms(show);
+    settingsManager->saveConfig();
+    pianoRoll.setShowPinnedWaveforms(show);
+  };
+
   // Configure toolbar for plugin mode
   if (isPluginMode())
     toolbar.setPluginMode(true);

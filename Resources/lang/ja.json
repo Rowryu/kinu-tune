@@ -135,6 +135,7 @@
   "panel.rendering": "レンダリング",
   "panel.tracks": "トラック",
   "panel.use_daw_track_color": "DAW のトラックカラーを使用",
+  "panel.show_pinned_waveforms": "ピン留めトラックの波形を表示",
   "panel.time": "タイム",
   "panel.ui_brightness": "UI の明るさ",
   "param.beat": "拍子",

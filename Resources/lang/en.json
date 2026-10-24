@@ -135,6 +135,7 @@
   "panel.rendering": "Rendering",
   "panel.tracks": "Tracks",
   "panel.use_daw_track_color": "Use DAW Track Color",
+  "panel.show_pinned_waveforms": "Show pinned track waveforms",
   "panel.time": "Time",
   "panel.ui_brightness": "UI Brightness",
   "param.beat": "Beat",

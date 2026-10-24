@@ -791,11 +791,26 @@ void PianoRollComponent::drawAudioSourceRegionOverlay(juce::Graphics &g)
   }
 }
 
+void PianoRollComponent::setShowPinnedWaveforms(bool show)
+{
+  if (show == waveformBackgroundRenderer->getShowPinnedWaveforms())
+    return;
+  waveformBackgroundRenderer->setShowPinnedWaveforms(show);
+  repaint();
+}
+
+bool PianoRollComponent::getShowPinnedWaveforms() const
+{
+  return waveformBackgroundRenderer->getShowPinnedWaveforms();
+}
+
 void PianoRollComponent::setRegionPreviews(MainViewRegionPreviewList previews)
 {
   regionPreviews = std::move(previews);
-  waveformBackgroundRenderer->setRegionPreviews(
-      withoutPinnedRegions(regionPreviews));
+  // The renderer gets the pinned regions too now: it draws their waveform in
+  // the track's own colour when that is switched on, and ignores them for
+  // everything else.
+  waveformBackgroundRenderer->setRegionPreviews(regionPreviews);
   regionPreviewsEndSeconds = 0.0;
   if (regionPreviews)
     for (const auto &region : *regionPreviews)
