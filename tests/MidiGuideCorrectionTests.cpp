@@ -202,7 +202,7 @@ void testStrengthScalesTheMove()
 
 void testMaxShiftIsRespected()
 {
-    std::printf("maximum pitch shift is never exceeded\n");
+    std::printf("a note too far from the guide is left alone\n");
 
     // Sung a fourth below the guide: a wrong note, not a tuning error.
     const std::vector<SungNote> sung = {sungNote(0, 1, 55.0f)};
@@ -215,8 +215,23 @@ void testMaxShiftIsRespected()
     params.minConfidence = 0.0f; // force a correction to test the clamp
     const auto targets = computePitchTargets(sung, guide, matches, params);
 
-    check(std::abs(targets[0].appliedShiftSemitones) <= 2.0f + 1e-5f,
-          "shift is clamped to the ceiling");
+    check(!targets[0].corrected,
+          "a fourth away is a wrong note, not a tuning error: left alone");
+    check(std::abs(targets[0].appliedShiftSemitones) < 1e-5f, "and not moved");
+
+    // The same note, now inside the ceiling, still gets corrected: the test
+    // is on the distance to the guide, not a blanket refusal.
+    const std::vector<SungNote> near = {sungNote(0, 1, 59.3f)};
+    const auto nearMatches = alignNotesToGuide(near, guide);
+    const auto nearTargets =
+        computePitchTargets(near, guide, nearMatches, params);
+    check(nearTargets[0].corrected, "a note within the ceiling is corrected");
+
+    // And a low strength cannot sneak the wrong note under the bar by making
+    // the move itself small.
+    params.correctionStrength = 0.1f;
+    const auto weak = computePitchTargets(sung, guide, matches, params);
+    check(!weak[0].corrected, "low strength does not excuse a wrong match");
 }
 
 void testLowConfidenceIsLeftAlone()

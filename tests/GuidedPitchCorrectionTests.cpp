@@ -142,7 +142,7 @@ int main()
         CHECK(near(project.getNotes()[2].getMidiNote(), 62.0f, 0.1f));
     }
 
-    // --- a wrong note is clamped, not dragged ----------------------------
+    // --- a wrong note is left alone, not dragged -------------------------
     {
         Project project;
         project.addNote(Note(0, 100, 55.0f)); // a fourth below the guide
@@ -156,7 +156,7 @@ int main()
         applyGuidedPitchCorrection(project, g, params);
 
         const float moved = project.getNotes()[0].getMidiNote() - 55.0f;
-        CHECK(std::abs(moved) <= 2.0f + 1e-4f);
+        CHECK(std::abs(moved) < 1e-4f);
     }
 
     // --- undo and redo restore exactly -----------------------------------

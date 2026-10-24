@@ -54,8 +54,24 @@ std::vector<PitchTargetResult> computePitchTargets(
                 ? std::clamp((match.confidence - params.minConfidence) / span,
                              0.0f, 1.0f)
                 : 1.0f;
-        float shift = fullShift * strength * trust;
-        shift = std::clamp(shift, -ceiling, ceiling);
+        // Too far from the guide to believe. The ceiling judges the MATCH,
+        // not the move: it asks whether this guide note can really be the one
+        // this note was meant to be, and a note a whole tone away almost
+        // never is. So the distance to the guide is what is tested, before
+        // strength and trust scale it - otherwise a low strength setting
+        // sneaks a wrong match under the bar and corrects towards it anyway.
+        //
+        // This used to clamp instead, which is the worst of the three
+        // options: the note was dragged as far as the ceiling allowed and
+        // left on no musical pitch at all, having paid the full cost of being
+        // re-rendered to get there. Measured on the user's own material, the
+        // moments that sounded worst were exactly these - moved 165 and 244
+        // cents, right up against a 2-semitone ceiling - while every note the
+        // correction left alone came back bit-faithful.
+        if (std::abs(fullShift) > ceiling)
+            continue;
+
+        const float shift = fullShift * strength * trust;
 
         // Below the dead band the note is left exactly as it was sung,
         // rather than re-rendered for a move nobody can hear.

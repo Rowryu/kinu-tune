@@ -18,10 +18,19 @@ struct PitchTargetParams
     /// guide. Partial values keep some of the singer's own intonation.
     float correctionStrength = 0.75f;
 
-    /// Hard ceiling on how far one note may move, in semitones. A note that
-    /// would need more than this is almost always a wrong match or a wrong
-    /// note, and dragging it the whole way sounds worse than leaving it.
-    float maxShiftSemitones = 2.0f;
+    /// How far from the guide a note may be and still be believed, in
+    /// semitones. Beyond this the pairing is almost always a wrong match or a
+    /// wrong note, and the note is left exactly as it was sung.
+    ///
+    /// This is a test on the match, not a clamp on the move: it is measured
+    /// against the full distance to the guide, before strength scales it, so
+    /// a low strength cannot smuggle a wrong match under the bar.
+    ///
+    /// A semitone is already generous for a tuning error. Singers land within
+    /// a few tens of cents of what they meant; a note a whole tone out is a
+    /// different note, and correcting towards it is how a correction comes
+    /// back sounding processed.
+    float maxShiftSemitones = 1.0f;
 
     /// Matches below this confidence are left uncorrected entirely.
     float minConfidence = 0.25f;
