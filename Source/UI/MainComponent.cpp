@@ -3111,6 +3111,12 @@ void MainComponent::setHostBpmProvider(std::function<double()> getBpm)
 
 void MainComponent::setBypassed(bool bypassed) {
   pianoRoll.setBypassed(bypassed);
+  toolbar.setBypassState(bypassed);
+}
+
+void MainComponent::setBypassRequestHandler(std::function<void(bool)> handler) {
+  toolbar.setBypassAvailable(handler != nullptr);
+  toolbar.onToggleBypass = std::move(handler);
 }
 
 void MainComponent::setHostTempoMapProvider(

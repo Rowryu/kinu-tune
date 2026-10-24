@@ -26,6 +26,7 @@ ToolbarComponent::ToolbarComponent()
     logoImage = loadImage(BinaryData::logo_png, BinaryData::logo_pngSize);
 
     followButton.setImage(loadImage(BinaryData::scroll_png, BinaryData::scroll_pngSize));
+    bypassButton.setImage(loadImage(BinaryData::bypass_png, BinaryData::bypass_pngSize));
     parametersButton.setImage(loadImage(BinaryData::side_png, BinaryData::side_pngSize));
     leftPanelButton.setImage(loadImage(BinaryData::tracks_png, BinaryData::tracks_pngSize));
     // region.png: clip icon (off) / track icon (on), each with a hover frame.
@@ -41,6 +42,7 @@ ToolbarComponent::ToolbarComponent()
     addAndMakeVisible(pitchDrawingModeButton);
     addAndMakeVisible(timingModeButton);
     addAndMakeVisible(followButton);
+    addChildComponent(bypassButton); // shown once a host parameter backs it
     addAndMakeVisible(auditionButton);
     addAndMakeVisible(undoButton);
     addAndMakeVisible(redoButton);
@@ -57,6 +59,7 @@ ToolbarComponent::ToolbarComponent()
     pitchDrawingModeButton.addListener(this);
     timingModeButton.addListener(this);
     followButton.addListener(this);
+    bypassButton.addListener(this);
     auditionButton.addListener(this);
     undoButton.addListener(this);
     redoButton.addListener(this);
@@ -262,7 +265,8 @@ void ToolbarComponent::resized()
     const int transportSlotSize = 30;
     const int transportPad = 9;
     const int transportSlotStride = 28;
-    const int numTransport = recordButton.isVisible() ? 5 : 4;
+    const int numTransport = (recordButton.isVisible() ? 5 : 4) +
+                             (bypassButton.isVisible() ? 1 : 0);
     const int capsuleW = transportSlotSize
                          + (numTransport - 1) * transportSlotStride
                          + transportPad * 2 + 6;
@@ -317,6 +321,26 @@ void ToolbarComponent::resized()
     slotX += transportSlotStride;
     setButtonInSlot(followButton, slotX);
     followButton.setBounds(followButton.getBounds().translated(5, 0));
+    if (bypassButton.isVisible())
+    {
+        slotX += transportSlotStride;
+        setButtonInSlot(bypassButton, slotX);
+        bypassButton.setBounds(bypassButton.getBounds().translated(5, 0));
+    }
+}
+
+void ToolbarComponent::setBypassState(bool bypassed)
+{
+    bypassButton.setToggleState(bypassed, juce::dontSendNotification);
+}
+
+void ToolbarComponent::setBypassAvailable(bool available)
+{
+    if (bypassButton.isVisible() == available)
+        return;
+    bypassButton.setVisible(available);
+    resized();
+    repaint();
 }
 
 void ToolbarComponent::refreshLocalisedText()
@@ -326,6 +350,7 @@ void ToolbarComponent::refreshLocalisedText()
     pitchDrawingModeButton.setTooltip(TR("tooltip.pitch_drawing_tool"));
     timingModeButton.setTooltip(TR("tooltip.timing_tool"));
     followButton.setTooltip(TR("tooltip.auto_scroll"));
+    bypassButton.setTooltip(TR("tooltip.bypass"));
     auditionButton.setTooltip(TR("tooltip.live_audition"));
     recordButton.setTooltip(TR("tooltip.capture"));
     playButton.setTooltip(TR("toolbar.play"));
@@ -367,6 +392,15 @@ void ToolbarComponent::buttonClicked(juce::Button *button)
     }
     else if (button == &stopButton && onStop)
         onStop();
+    else if (button == &bypassButton)
+    {
+        // The host parameter is the truth; the timer sync sets the toggle back
+        // if the host refuses the change.
+        const bool next = !bypassButton.getToggleState();
+        bypassButton.setToggleState(next, juce::dontSendNotification);
+        if (onToggleBypass)
+            onToggleBypass(next);
+    }
     else if (button == &loopButton)
     {
         loopEnabled = !loopEnabled;

@@ -86,6 +86,8 @@ public:
     void setEditMode(EditMode mode);
     void setZoom(float pixelsPerSecond); // Update zoom slider without triggering callback
     void setLoopEnabled(bool enabled);
+    void setBypassState(bool bypassed);
+    void setBypassAvailable(bool available);
     void setAuditionEnabled(bool enabled);
     void setParametersVisible(bool visible);
     void setLeftPanelVisible(bool visible);
@@ -113,6 +115,7 @@ public:
     std::function<void(float)> onZoomChanged;
     std::function<void(EditMode)> onEditModeChanged;
     std::function<void(bool)> onToggleLoop;
+    std::function<void(bool)> onToggleBypass;
     std::function<void()> onUndo;
     std::function<void()> onRedo;
     std::function<void(bool)> onToggleRecord;
@@ -134,6 +137,7 @@ private:
     ToggleButton playButton;
     Button stopButton;
     ToggleButton loopButton;
+    ToggleButton bypassButton; // plug-in bypass; shows notes where they were analysed
     juce::Image logoImage;
 
     bool pluginMode = false;

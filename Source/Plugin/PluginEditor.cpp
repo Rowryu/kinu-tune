@@ -362,6 +362,14 @@ void PitchNetAudioProcessorEditor::setupARAMode() {
   // happens to be. A song with a tempo track has no such number, so ask ARA
   // for the song's own tempo map and let the grid follow it.
   mainView->setHostTempoMapProvider([this] { return readHostTempoMap(); });
+  mainView->setBypassRequestHandler([this](bool bypass) {
+    if (auto* param = audioProcessor.getAPVTS().getParameter(
+            PitchNetAudioProcessor::PARAM_BYPASS)) {
+      param->beginChangeGesture();
+      param->setValueNotifyingHost(bypass ? 1.0f : 0.0f);
+      param->endChangeGesture();
+    }
+  });
 
   // A guide can come from another track that has the plug-in on it, which is
   // only possible under ARA: every instance shares one document.

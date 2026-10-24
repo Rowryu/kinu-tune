@@ -254,6 +254,7 @@
   "toolbar.stop": "정지",
   "toolbar.zoom": "확대/축소:",
   "tooltip.auto_scroll": "자동 스크롤",
+  "tooltip.bypass": "바이패스 (원래 소리와 위치)",
   "tooltip.capture": "캡처",
   "tooltip.context_audition": "컨텍스트 미리듣기",
   "tooltip.pitch_drawing_tool": "피치 그리기 도구 (단축키: 3)",

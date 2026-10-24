@@ -259,6 +259,7 @@
   "toolbar.stop": "Stop",
   "toolbar.zoom": "Zoom:",
   "tooltip.auto_scroll": "Auto Scroll",
+  "tooltip.bypass": "Bypass (original sound and positions)",
   "tooltip.capture": "Capture",
   "tooltip.context_audition": "Context Audition",
   "tooltip.pitch_drawing_tool": "Pitch Drawing Tool (Shortcut: 3)",

@@ -254,6 +254,7 @@
   "toolbar.stop": "停止",
   "toolbar.zoom": "縮放:",
   "tooltip.auto_scroll": "自動捲動",
+  "tooltip.bypass": "旁通（原始聲音與位置）",
   "tooltip.capture": "擷取",
   "tooltip.context_audition": "情境試聽",
   "tooltip.pitch_drawing_tool": "音高繪製工具（快速鍵：3）",

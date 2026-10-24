@@ -209,4 +209,7 @@ public:
    * speakers are doing instead of showing edits that are not being applied.
    */
   virtual void setBypassed(bool bypassed) = 0;
+  /** The toolbar's own bypass switch. The handler sets the host parameter;
+      the display follows through setBypassed like any other bypass. */
+  virtual void setBypassRequestHandler(std::function<void(bool)> handler) = 0;
 };

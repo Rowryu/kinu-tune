@@ -257,6 +257,7 @@
   "toolbar.stop": "停止",
   "toolbar.zoom": "ズーム:",
   "tooltip.auto_scroll": "自動スクロール",
+  "tooltip.bypass": "バイパス（補正前の音と位置）",
   "tooltip.capture": "キャプチャ",
   "tooltip.context_audition": "コンテキスト試聴",
   "tooltip.pitch_drawing_tool": "ピッチ描画ツール（ショートカット: 3）",

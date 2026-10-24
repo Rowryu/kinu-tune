@@ -254,6 +254,7 @@
   "toolbar.stop": "Detener",
   "toolbar.zoom": "Zoom:",
   "tooltip.auto_scroll": "Desplazamiento automático",
+  "tooltip.bypass": "Bypass (sonido y posiciones originales)",
   "tooltip.capture": "Capturar",
   "tooltip.context_audition": "Audición en contexto",
   "tooltip.pitch_drawing_tool": "Herramienta de dibujo de tono (atajo: 3)",

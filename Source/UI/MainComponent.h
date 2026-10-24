@@ -304,6 +304,7 @@ public:
   void notifyHostStopped() override; // Called when host stops playback
   void triggerResynthesis() override;
   void setBypassed(bool bypassed) override; // Triggered by DAW parameter automation
+  void setBypassRequestHandler(std::function<void(bool)> handler) override;
 
 private:
   // tests/AuditionHandoffTests.cpp drives the audition hand-offs directly.
