@@ -1007,4 +1007,6 @@ browser. Paraphrased takeaways and what they map to:
   of taste (he prefers off, checking with the metronome); the BPM/time
   signature must be right first; finding the true start is the skill. →
   timing-tool drags (boundary and whole-note move) now snap the dragged edge
-  to the timeline grid when grid snap is on; **Alt** drags freely.
+  to the timeline grid when grid snap is on; holding **Shift** during the drag
+  places it freely (Alt was first choice but Alt-click splits and Alt-drag
+  is vertical zoom, both handled before the timing handler).

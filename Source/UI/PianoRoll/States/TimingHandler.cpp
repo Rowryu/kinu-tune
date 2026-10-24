@@ -466,9 +466,11 @@ bool TimingHandler::mouseDrag(const juce::MouseEvent& e, float worldX, float wor
   float delta = frame - dragAnchorFrame;
 
   // Like a warp marker with snap on: the dragged edge (or the moved note's
-  // start) lands on the timeline grid when grid snapping is enabled. Alt
-  // drags freely, for the cases that have to be placed by ear.
-  if (!e.mods.isAltDown())
+  // start) lands on the timeline grid when grid snapping is enabled. Holding
+  // Shift while dragging places it freely, for the cases that have to be
+  // placed by ear. Not Alt: Alt-click splits a note and Alt-drag on the
+  // canvas is vertical zoom, and both are taken before this handler runs.
+  if (!e.mods.isShiftDown())
   {
     const float edgeX = (activeBoundary.frame + delta) / framesPerSecond * pps;
     const double snappedTime =
