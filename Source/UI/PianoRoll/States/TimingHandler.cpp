@@ -423,7 +423,7 @@ bool TimingHandler::mouseDown(const juce::MouseEvent& e, float worldX,
   return true;
 }
 
-bool TimingHandler::mouseDrag(const juce::MouseEvent&, float worldX, float worldY)
+bool TimingHandler::mouseDrag(const juce::MouseEvent& e, float worldX, float worldY)
 {
   if (bodyNote)
   {
@@ -460,9 +460,23 @@ bool TimingHandler::mouseDrag(const juce::MouseEvent&, float worldX, float world
   if (!dragging || !owner_.project)
     return false;
 
-  const float seconds = worldX / std::max(1.0f, owner_.pixelsPerSecond);
-  const float frame = seconds * SAMPLE_RATE / static_cast<float>(HOP_SIZE);
-  applyPreviewDelta(frame - dragAnchorFrame);
+  const float pps = std::max(1.0f, owner_.pixelsPerSecond);
+  const float framesPerSecond = SAMPLE_RATE / static_cast<float>(HOP_SIZE);
+  const float frame = worldX / pps * framesPerSecond;
+  float delta = frame - dragAnchorFrame;
+
+  // Like a warp marker with snap on: the dragged edge (or the moved note's
+  // start) lands on the timeline grid when grid snapping is enabled. Alt
+  // drags freely, for the cases that have to be placed by ear.
+  if (!e.mods.isAltDown())
+  {
+    const float edgeX = (activeBoundary.frame + delta) / framesPerSecond * pps;
+    const double snappedTime =
+        owner_.snapTimeToTimelineGrid(owner_.xToTime(edgeX));
+    const float snappedX = owner_.timeToX(snappedTime);
+    delta = snappedX / pps * framesPerSecond - activeBoundary.frame;
+  }
+  applyPreviewDelta(delta);
   if (owner_.onPitchEdited)
     owner_.onPitchEdited();
   return true;

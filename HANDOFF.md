@@ -1002,3 +1002,9 @@ browser. Paraphrased takeaways and what they map to:
   `PianoRollComponent::splitNotesAtFrames` (NoteSplitter, one undo per split),
   run from the timing apply when grid mode and the new toggle
   「つながった音節を分けてから合わせる」 (default on). Only notes not yet moved.
+- **Cubase AudioWarp video (SAKASAKAmax, burned-in subtitles):** warp tab at
+  the syllable's waveform start, drag to a 1/32 grid; snap on/off is a matter
+  of taste (he prefers off, checking with the metronome); the BPM/time
+  signature must be right first; finding the true start is the skill. →
+  timing-tool drags (boundary and whole-note move) now snap the dragged edge
+  to the timeline grid when grid snap is on; **Alt** drags freely.
