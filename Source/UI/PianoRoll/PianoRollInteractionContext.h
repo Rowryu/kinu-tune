@@ -12,6 +12,7 @@
 
 #include <functional>
 #include <memory>
+#include <optional>
 
 class PianoRollComponent;
 class PitchUndoManager;
@@ -33,6 +34,7 @@ public:
 
   PianoRollViewState &viewState;
   int &hoveredPitchToolHandle;
+  PitchToolHandles::HandleType &armedSmartControl;
   float &pixelsPerSecond;
   float &pixelsPerSemitone;
   double &scrollX;
@@ -75,6 +77,9 @@ public:
   PitchEditor::DragSnapKind resolveDragSnapKind(const juce::ModifierKeys &mods) const;
   void setHoveredNote(Note *note);
   void selectFollowingSamePitch(Note &note);
+  bool shiftNotesBySemitones(
+      const std::vector<Note *> &targets,
+      const std::function<std::optional<float>(const Note &)> &shiftForNote);
 
 private:
   PianoRollComponent &component;

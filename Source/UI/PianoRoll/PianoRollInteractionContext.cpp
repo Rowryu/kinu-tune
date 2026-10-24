@@ -10,6 +10,7 @@ PianoRollInteractionContext::PianoRollInteractionContext(
       pitchToolController(component.pitchToolController),
       viewState(component.viewState),
       hoveredPitchToolHandle(component.hoveredPitchToolHandle),
+      armedSmartControl(component.armedSmartControl),
       pixelsPerSecond(component.pixelsPerSecond),
       pixelsPerSemitone(component.pixelsPerSemitone),
       scrollX(component.scrollX),
@@ -120,4 +121,11 @@ void PianoRollInteractionContext::setHoveredNote(Note *note)
 void PianoRollInteractionContext::selectFollowingSamePitch(Note &note)
 {
   component.selectFollowingSamePitch(note);
+}
+
+bool PianoRollInteractionContext::shiftNotesBySemitones(
+    const std::vector<Note *> &targets,
+    const std::function<std::optional<float>(const Note &)> &shiftForNote)
+{
+  return component.shiftNotesBySemitones(targets, shiftForNote);
 }
