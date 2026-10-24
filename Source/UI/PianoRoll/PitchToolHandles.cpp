@@ -46,38 +46,77 @@ void PitchToolHandles::updateHandles(const std::vector<Note*>& selectedNotes,
   const float centreX = (left + right) * 0.5f;
   const float s = controlSize;
   const float gap = 3.0f;
-  if (mapper.getPixelsPerSemitone() < minSemitoneHeight ||
-      right - left < minSegmentWidth)
-    return;
 
   const auto addSquare = [this, note, s](HandleType type, float cx, float cy) {
     addHandle(type, cx, cy, note);
     handles.back().bounds = {cx - s * 0.5f, cy - s * 0.5f, s, s};
   };
 
+  // Glue sits just outside the bottom corners in every layout.
+  const auto addGlue = [&] {
+    if (options.canGlueLeft)
+      addSquare(HandleType::GlueLeft, left - s * 0.5f - 1.0f, bottom - s * 0.5f);
+    if (options.canGlueRight)
+      addSquare(HandleType::GlueRight, right + s * 0.5f + 1.0f, bottom - s * 0.5f);
+  };
+
+  const bool roomy = mapper.getPixelsPerSemitone() >= minSemitoneHeight &&
+                     right - left >= minSegmentWidth;
+  const bool roomForCorners = roomy && right - left >= minSegmentWidthForCorners;
+
+  const float aboveY = top - s * 0.5f - gap;
+  const float belowY = bottom + s * 0.5f + gap;
+  const float step = s + gap;
+
+  if (options.showAll && !roomForCorners)
+  {
+    // "Show All" on a segment too small to carry the controls on itself.
+    // These used to be hidden until you zoomed in, which is the same as not
+    // having them: drift, straighten and volume were unreachable at any
+    // zoom a whole take fits in. Only the selected segment carries controls,
+    // so there is nothing to clutter - they go in a strip above and below it
+    // instead, at full size, centred on the segment.
+    addSquare(HandleType::TiltLeft, centreX - 1.5f * step, aboveY);
+    addSquare(HandleType::Vibrato, centreX - 0.5f * step, aboveY);
+    addSquare(HandleType::PitchDrift, centreX + 0.5f * step, aboveY);
+    addSquare(HandleType::TiltRight, centreX + 1.5f * step, aboveY);
+
+    addSquare(HandleType::Formant, centreX - step, belowY);
+    addSquare(HandleType::CorrectPitch, centreX, belowY);
+    addSquare(HandleType::Amplitude, centreX + step, belowY);
+
+    addGlue();
+    return;
+  }
+
+  if (!roomy)
+    return;
+
   // Default set: straighten (top centre), correct pitch (below the bottom
   // centre), glue (outside the bottom corners).
-  addSquare(HandleType::Vibrato, centreX, top - s * 0.5f - gap);
-  addSquare(HandleType::CorrectPitch, centreX, bottom + s * 0.5f + gap);
+  addSquare(HandleType::Vibrato, centreX, aboveY);
+  addSquare(HandleType::CorrectPitch, centreX, belowY);
 
   // No split line on the segment body: clicking a segment must only select
   // it (user request, 2026-10-19). Splitting is Alt/Option-click or the
   // Split tool.
 
-  if (options.canGlueLeft)
-    addSquare(HandleType::GlueLeft, left - s * 0.5f - 1.0f, bottom - s * 0.5f);
-  if (options.canGlueRight)
-    addSquare(HandleType::GlueRight, right + s * 0.5f + 1.0f, bottom - s * 0.5f);
+  addGlue();
 
-  if (!options.showAll || right - left < minSegmentWidthForCorners)
+  if (!options.showAll || !roomForCorners)
     return;
 
   // "Show All": tilt at the top corners, formant and volume in the bottom
   // corners, just inside the segment so they do not collide with glue.
-  addSquare(HandleType::TiltLeft, left + s * 0.5f, top - s * 0.5f - gap);
-  addSquare(HandleType::TiltRight, right - s * 0.5f, top - s * 0.5f - gap);
+  addSquare(HandleType::TiltLeft, left + s * 0.5f, aboveY);
+  addSquare(HandleType::TiltRight, right - s * 0.5f, aboveY);
   addSquare(HandleType::Formant, left + s * 0.5f + 1.0f, bottom - s * 0.5f - 1.0f);
   addSquare(HandleType::Amplitude, right - s * 0.5f - 1.0f, bottom - s * 0.5f - 1.0f);
+
+  // Pitch drift had a type, an icon and a working drag in PitchToolController,
+  // and was never placed, so it could not be reached at all. It goes beside
+  // correct pitch under the segment, where nothing else sits.
+  addSquare(HandleType::PitchDrift, centreX + step, belowY);
 }
 
 void PitchToolHandles::draw(juce::Graphics& g) const {

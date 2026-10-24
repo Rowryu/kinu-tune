@@ -83,10 +83,16 @@ int main()
         CHECK(findHandle(handles, Type::GlueRight) == nullptr);
         CHECK(findHandle(handles, Type::GlueLeft)->bounds.getRight() <= left);
 
-        // "Show all" adds tilt, formant and volume.
+        // "Show all" adds tilt, formant, volume and pitch drift.
         handles.setOptions({true, true, true});
         handles.updateHandles({&note}, mapper);
-        CHECK(handles.getHandles().size() == 8);
+        CHECK(handles.getHandles().size() == 9);
+        // Drift used to have a working drag and no handle; it sits beside
+        // correct pitch, under the segment.
+        const auto* drift = findHandle(handles, Type::PitchDrift);
+        CHECK(drift != nullptr);
+        CHECK(drift->bounds.getY() >= bottom);
+        CHECK(!drift->bounds.intersects(findHandle(handles, Type::CorrectPitch)->bounds));
         CHECK(findHandle(handles, Type::TiltLeft)->bounds.getBottom() <= top);
         CHECK(findHandle(handles, Type::Formant)->bounds.getBottom() <= bottom);
         CHECK(findHandle(handles, Type::Amplitude)->bounds.getRight() <= right);
@@ -97,7 +103,9 @@ int main()
         CHECK(!handles.containsLayoutPoint((left + right) * 0.5f, top + 12.0f));
         CHECK(handles.containsLayoutPoint((left + right) * 0.5f, top - 7.5f));
 
-        // Like VariAudio, controls appear only once the segment is zoomed in.
+        // Without "Show all", controls appear only once the segment is zoomed
+        // in, like VariAudio.
+        handles.setOptions({false, false, false});
         mapper.setPixelsPerSemitone(12.0f);
         handles.updateHandles({&note}, mapper);
         CHECK(handles.isEmpty());
@@ -108,6 +116,32 @@ int main()
         Note medium = makeNote(100, 112, 64.0f); // ~28 px: no corner controls
         handles.updateHandles({&medium}, mapper);
         CHECK(!handles.isEmpty() && findHandle(handles, Type::TiltLeft) == nullptr);
+
+        // With "Show all", a segment too small to carry them still gets every
+        // control, in a strip above and below it, none on the body and none
+        // overlapping another.
+        handles.setOptions({true, false, false});
+        mapper.setPixelsPerSemitone(12.0f);
+        for (Note* small : {&note, &narrow})
+        {
+            handles.updateHandles({small}, mapper);
+            CHECK(handles.getHandles().size() == 7);
+            const float sTop = mapper.midiToY(64.0f);
+            const float sBottom = sTop + 12.0f;
+            for (const auto type : {Type::TiltLeft, Type::Vibrato,
+                                    Type::PitchDrift, Type::TiltRight})
+                CHECK(findHandle(handles, type) &&
+                      findHandle(handles, type)->bounds.getBottom() <= sTop);
+            for (const auto type : {Type::Formant, Type::CorrectPitch,
+                                    Type::Amplitude})
+                CHECK(findHandle(handles, type) &&
+                      findHandle(handles, type)->bounds.getY() >= sBottom);
+            const auto& all = handles.getHandles();
+            for (size_t i = 0; i < all.size(); ++i)
+                for (size_t j = i + 1; j < all.size(); ++j)
+                    CHECK(!all[i].bounds.intersects(all[j].bounds));
+        }
+        mapper.setPixelsPerSemitone(24.0f);
     }
 
     // --- Pitch snap modes ------------------------------------------------
