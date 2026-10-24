@@ -75,13 +75,14 @@ public:
         const juce::String names[] = {
             TR("canvas.select_all"), TR("canvas.select"), TR("canvas.split"),
             TR("canvas.pitch_drawing"),    TR("canvas.timing"), TR("command.undo"),
-            TR("command.redo")
+            TR("command.redo"), TR("canvas.drift"), TR("canvas.straighten"),
+            TR("canvas.volume")
         };
         const void* data[] = { BinaryData::selectmenu_png, BinaryData::splitmenu_png,
                                BinaryData::drawingmenu_png, BinaryData::timingmenu_png };
         const int sizes[] = { BinaryData::selectmenu_pngSize, BinaryData::splitmenu_pngSize,
                               BinaryData::drawingmenu_pngSize, BinaryData::timingmenu_pngSize };
-        for (int i = 0; i < 7; ++i)
+        for (int i = 0; i < buttonCount; ++i)
         {
             buttons[i] = std::make_unique<ActionButton>(names[i]);
             if (i > 0 && i < 5)
@@ -95,8 +96,9 @@ public:
         }
         buttons[5]->setEnabled(canUndo);
         buttons[6]->setEnabled(canRedo);
-        topWidth = juce::GlyphArrangement::getStringWidthInt(
-                      AppFont::getFont(14), names[0]) + 24;
+        for (const int i : { 0, 5, 6, 7, 8, 9 })
+            topWidth = juce::jmax(topWidth, juce::GlyphArrangement::getStringWidthInt(
+                                                AppFont::getFont(14), names[i]) + 24);
     }
 
     void getIdealSize(int& width, int& height) override
@@ -111,6 +113,8 @@ public:
         g.setColour(juce::Colour(0xFF3E3E3Eu));
         g.fillRect(8, padding + 2 * rowHeight + separatorHeight / 2,
                    topWidth - 16, 1);
+        g.fillRect(8, padding + 3 * rowHeight + separatorHeight + separatorHeight / 2,
+                   topWidth - 16, 1);
     }
 
     void resized() override
@@ -119,6 +123,10 @@ public:
         buttons[6]->setBounds(0, padding + rowHeight, topWidth, rowHeight);
         buttons[0]->setBounds(0, padding + 2 * rowHeight + separatorHeight,
                               topWidth, rowHeight);
+        // Drift, straighten, volume: the smart controls as tools.
+        for (int i = 7; i < buttonCount; ++i)
+            buttons[i]->setBounds(0, padding + (i - 4) * rowHeight + 2 * separatorHeight,
+                                  topWidth, rowHeight);
         for (int i = 1; i < 5; ++i)
             buttons[i]->setBounds((i - 1) * (buttonWidth + 1), topHeight + 1,
                                   buttonWidth, buttonHeight);
@@ -126,10 +134,11 @@ public:
 
 private:
     static constexpr int padding = 4, rowHeight = 26, separatorHeight = 8;
-    static constexpr int topHeight = 2 * padding + 3 * rowHeight + separatorHeight;
+    static constexpr int buttonCount = 10;
+    static constexpr int topHeight = 2 * padding + 6 * rowHeight + 2 * separatorHeight;
     static constexpr int buttonWidth = 22, buttonHeight = 21;
     int topWidth = 0;
     std::shared_ptr<int> choice;
-    std::array<std::unique_ptr<ActionButton>, 7> buttons;
+    std::array<std::unique_ptr<ActionButton>, buttonCount> buttons;
 };
 }

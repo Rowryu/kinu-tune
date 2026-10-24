@@ -72,6 +72,30 @@ bool SelectHandler::mouseDown(const juce::MouseEvent &e, float worldX,
   // Check if clicking on a note
   Note *note = owner_.findNoteAt(worldX, worldY);
 
+  // A drift / straighten / volume tool from the right-click menu: a plain
+  // drag on any segment drives that control, no handle hunting needed.
+  if (note && !selectionModifier && !e.mods.isAltDown() &&
+      owner_.armedSmartControl != PitchToolHandles::HandleType::None &&
+      owner_.pitchToolController)
+  {
+    if (!note->isSelected())
+    {
+      if (!e.mods.isShiftDown())
+        project->deselectAllNotes();
+      note->setSelected(true);
+      if (owner_.onNoteSelected)
+        owner_.onNoteSelected(note);
+    }
+    if (owner_.pitchToolController->beginDrag(
+            owner_.armedSmartControl, note, owner_.getSelectedNotes(),
+            juce::Point<float>(worldX, worldY)))
+    {
+      owner_.updatePitchToolHandlesFromSelection();
+      owner_.repaint();
+      return true;
+    }
+  }
+
   if (note && e.mods.isAltDown() && !e.mods.isCommandDown())
   {
     // VariAudio: Alt-click on a segment splits it at the pointer.

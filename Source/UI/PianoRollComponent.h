@@ -441,6 +441,10 @@ private:
   // VariAudio look and smart controls (see NoteRenderer::setSegmentStyle).
   bool segmentStyle = true;
   bool showAllSmartControls = true; // VariAudio "Show All", the default here
+  // A smart control picked from the right-click menu (drift, straighten,
+  // volume). While set, dragging any segment vertically drives that control
+  // on it, Melodyne-tool style. Any edit-mode change clears it.
+  PitchToolHandles::HandleType armedSmartControl = PitchToolHandles::HandleType::None;
   // Inspector slider gesture in progress.
   bool inspectorEditActive = false;
   InspectorParam inspectorEditParam = InspectorParam::CorrectPitch;

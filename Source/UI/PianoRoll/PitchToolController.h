@@ -29,6 +29,15 @@ public:
                  const CoordinateMapper& mapper);
 
   /**
+   * Start a smart-control drag without a handle under the pointer: the
+   * right-click menu's drift / straighten / volume tools grab the control of
+   * whichever segment is clicked. Same capture and undo as a handle drag.
+   */
+  bool beginDrag(PitchToolHandles::HandleType type, Note* note,
+                 const std::vector<Note*>& selectedNotes,
+                 juce::Point<float> startPosition);
+
+  /**
    * Handle mouse drag on active handle.
    * @return true if event was handled, false otherwise
    */

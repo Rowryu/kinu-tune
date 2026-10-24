@@ -35,8 +35,16 @@ bool PitchToolController::mouseDown(const juce::MouseEvent& e,
   }
 
   const auto& handle = handles.getHandle(hitIndex);
-  activeHandleType = handle.type;
-  activeHandleNote = handle.note;
+  return beginDrag(handle.type, handle.note, selectedNotes, e.position);
+}
+
+bool PitchToolController::beginDrag(PitchToolHandles::HandleType handleType,
+                                    Note* handleNote,
+                                    const std::vector<Note*>& selectedNotes,
+                                    juce::Point<float> startPosition)
+{
+  activeHandleType = handleType;
+  activeHandleNote = handleNote;
 
   // The visible top controls belong to the hovered note. When it is part of a
   // multi-note selection, slopes and vibrato are group edits, so capture the
@@ -44,20 +52,20 @@ bool PitchToolController::mouseDown(const juce::MouseEvent& e,
   // that note rather than an unrelated selection.
   affectedNotes.clear();
   const bool handleIsSelected =
-      handle.note && std::find(selectedNotes.begin(), selectedNotes.end(),
-                               handle.note) != selectedNotes.end();
+      handleNote && std::find(selectedNotes.begin(), selectedNotes.end(),
+                               handleNote) != selectedNotes.end();
   const bool isGroupEdit = handleIsSelected && selectedNotes.size() > 1 &&
-      (handle.type == PitchToolHandles::HandleType::TiltLeft ||
-       handle.type == PitchToolHandles::HandleType::TiltRight ||
-       handle.type == PitchToolHandles::HandleType::Vibrato ||
-       handle.type == PitchToolHandles::HandleType::PitchDrift ||
-       handle.type == PitchToolHandles::HandleType::Formant ||
-       handle.type == PitchToolHandles::HandleType::Amplitude ||
-       handle.type == PitchToolHandles::HandleType::CorrectPitch);
-  if (isGroupEdit || !handle.note)
+      (handleType == PitchToolHandles::HandleType::TiltLeft ||
+       handleType == PitchToolHandles::HandleType::TiltRight ||
+       handleType == PitchToolHandles::HandleType::Vibrato ||
+       handleType == PitchToolHandles::HandleType::PitchDrift ||
+       handleType == PitchToolHandles::HandleType::Formant ||
+       handleType == PitchToolHandles::HandleType::Amplitude ||
+       handleType == PitchToolHandles::HandleType::CorrectPitch);
+  if (isGroupEdit || !handleNote)
     affectedNotes = selectedNotes;
   else
-    affectedNotes.push_back(handle.note);
+    affectedNotes.push_back(handleNote);
   if (affectedNotes.empty())
     return false;
   
@@ -83,7 +91,7 @@ bool PitchToolController::mouseDown(const juce::MouseEvent& e,
     }
   }
 
-  dragStartPos = e.position;
+  dragStartPos = startPosition;
   dragging = true;
   return true;
 }

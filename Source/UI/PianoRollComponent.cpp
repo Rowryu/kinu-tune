@@ -2020,6 +2020,21 @@ void PianoRollComponent::mouseDown(const juce::MouseEvent &e)
         safeThis->onUndoRequested();
       else if (*choice == 7 && safeThis->onRedoRequested)
         safeThis->onRedoRequested();
+      else if (*choice >= 8 && *choice <= 10)
+      {
+        // Drift / straighten / volume: the select tool, with every drag on
+        // a segment driving that one control.
+        if (safeThis->onEditModeRequested)
+          safeThis->onEditModeRequested(EditMode::Select);
+        else
+          safeThis->setEditMode(EditMode::Select);
+        const PitchToolHandles::HandleType tools[] = {
+            PitchToolHandles::HandleType::PitchDrift,
+            PitchToolHandles::HandleType::Vibrato,
+            PitchToolHandles::HandleType::Amplitude };
+        safeThis->armedSmartControl = tools[*choice - 8];
+        safeThis->repaint();
+      }
       else if (*choice >= 2 && *choice <= 5)
       {
         const EditMode modes[] = { EditMode::Select, EditMode::Split,
@@ -2463,7 +2478,10 @@ void PianoRollComponent::mouseMove(const juce::MouseEvent &e)
   }
   else if (editMode == EditMode::Select)
   {
-    setMouseCursor(juce::MouseCursor::NormalCursor);
+    setMouseCursor(armedSmartControl != PitchToolHandles::HandleType::None &&
+                           noteUnderMouse != nullptr
+                       ? juce::MouseCursor::UpDownResizeCursor
+                       : juce::MouseCursor::NormalCursor);
   }
   else if (editMode == EditMode::Split)
   {
@@ -4228,6 +4246,7 @@ void PianoRollComponent::setEditMode(EditMode mode)
       timingHandler_)
     timingHandler_->cancel();
   editMode = mode;
+  armedSmartControl = PitchToolHandles::HandleType::None;
 
   if (mode == EditMode::PitchDrawing)
     setHoveredNote(nullptr);
