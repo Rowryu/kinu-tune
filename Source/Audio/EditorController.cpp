@@ -1,5 +1,6 @@
 #include "EditorController.h"
 #include "../Utils/NoteAmplitude.h"
+#include "Correction/NoteCentre.h"
 #include "../Utils/AudioResampler.h"
 #include "../Utils/SHA256Utils.h"
 #include "../Utils/ScaleUtils.h"
@@ -14,6 +15,59 @@
 #include <climits>
 #include <cmath>
 #include <mutex>
+
+namespace
+{
+/// RMS of the source audio for each analysis frame in [start, end).
+std::vector<float> frameRms(const AudioData& audio, int start, int end)
+{
+  const auto& wave = audio.originalWaveform.getNumSamples() > 0
+                         ? audio.originalWaveform : audio.waveform;
+  std::vector<float> out(static_cast<size_t>(std::max(0, end - start)), 0.0f);
+  const int channels = wave.getNumChannels();
+  const int total = wave.getNumSamples();
+  if (channels == 0 || total == 0 || audio.sampleRate <= 0)
+    return out;
+  const double samplesPerFrame =
+      static_cast<double>(HOP_SIZE) * audio.sampleRate / SAMPLE_RATE;
+  for (int f = start; f < end; ++f)
+  {
+    const int a = std::clamp(static_cast<int>(f * samplesPerFrame), 0, total);
+    const int b = std::clamp(static_cast<int>((f + 1) * samplesPerFrame), a, total);
+    double energy = 0.0;
+    for (int c = 0; c < channels; ++c)
+      for (int i = a; i < b; ++i)
+      {
+        const double v = wave.getSample(c, i);
+        energy += v * v;
+      }
+    const int count = (b - a) * channels;
+    out[static_cast<size_t>(f - start)] =
+        count > 0 ? static_cast<float>(std::sqrt(energy / count)) : 0.0f;
+  }
+  return out;
+}
+
+/// The pitch a listener hears the note at: the loud, held part, not the
+/// scoop into it or the fall out of it (see correction::perceivedCentreMidi).
+/// Falls back to the detector's value when the estimate disagrees by a
+/// semitone or more, which means the frames did not describe one note.
+float perceivedNoteMidi(const AudioData& audio, int start, int end,
+                        float detectorMidi)
+{
+  if (end <= start || end > static_cast<int>(audio.f0.size()))
+    return detectorMidi;
+  std::vector<float> f0(audio.f0.begin() + start, audio.f0.begin() + end);
+  for (int i = start; i < end; ++i)
+    if (i < static_cast<int>(audio.voicedMask.size()) && !audio.voicedMask[i])
+      f0[static_cast<size_t>(i - start)] = 0.0f;
+  const float centre =
+      correction::perceivedCentreMidi(f0, frameRms(audio, start, end));
+  if (centre < 0.0f || std::abs(centre - detectorMidi) >= 1.0f)
+    return detectorMidi;
+  return centre;
+}
+} // namespace
 
 namespace
 {
@@ -1200,7 +1254,8 @@ void EditorController::segmentIntoNotes(Project &targetProject,
       if (f0End - f0Start < 3)
         continue;
 
-      Note note(f0Start, f0End, gameNote.midiNote);
+      Note note(f0Start, f0End,
+                perceivedNoteMidi(audioData, f0Start, f0End, gameNote.midiNote));
       std::vector<float> f0Values(audioData.f0.begin() + f0Start,
                                   audioData.f0.begin() + f0End);
       note.setF0Values(std::move(f0Values));
@@ -1372,7 +1427,7 @@ void EditorController::segmentIntoNotes(Project &targetProject,
     if (midiCount == 0)
       return;
 
-    float midi = midiSum / midiCount;
+    float midi = perceivedNoteMidi(audioData, start, end, midiSum / midiCount);
 
     Note note(start, end, midi);
     std::vector<float> f0Values(audioData.f0.begin() + start,

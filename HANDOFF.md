@@ -957,3 +957,25 @@ VariAudio と同じく「掴んでドラッグする」もので、モードで�
   (both its boundaries selected and shifted together, so the segment keeps its
   length and only neighbours stretch — "ノーツを伸縮させずにタイミングを変える").
   Vertical = whole-semitone pitch move. Cursor is the grab hand over a body.
+
+## 39. Lessons from 手's Melodyne videos (read off on-screen text, 2026-10-24)
+
+The videos have no narration; the explanation is on-screen text, so the
+YouTube transcripts hold only lyrics. Read by stepping frames in the built-in
+browser. Paraphrased takeaways and what they map to:
+
+- Head/tail of a note (steep AND quiet) barely affects perceived pitch; only
+  the body is corrected. Pick the intended centre by where the voice is
+  loudest. → **done**: `correction::perceivedCentreMidi` (NoteCentre.*,
+  tests/NoteCentreTests.cpp) = loudness-weighted median, steep+quiet frames
+  weighted ×0.02. Used at analysis for each note's midi (falls back to the
+  detector value if they differ by ≥ 1 st). deltaPitch keeps the shape, so
+  scoops move with the note as in Melodyne.
+- Robotic "kero" comes from right-angle transitions; smooth junctions after
+  splitting/correcting. → TODO: auto-smooth boundaries of moved notes.
+- Pitch-flatten tool: use sparingly. Within a band around the centre is fine.
+- Timing: align the start of the pitch line to the grid; subdivide the grid if
+  nothing is near. For some consonants (plosives, ん) use the amplitude rise.
+  Stretching た/か-row consonants degrades them → split the consonant off
+  first. → TODO: consonant protection in the timing map (rigid shift of
+  onset→voiced-start, stretch absorbed by the previous vowel).
