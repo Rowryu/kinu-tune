@@ -20,7 +20,7 @@ public:
   void mouseMove(const juce::MouseEvent& e, float worldX,
                  float worldY) override;
   void draw(juce::Graphics& g) override;
-  bool isActive() const override { return dragging || selecting || pitchNote; }
+  bool isActive() const override { return dragging || selecting || pitchNote || bodyNote; }
   void cancel() override;
 
 private:
@@ -77,7 +77,15 @@ private:
   // Light pitch editing inside the timing tool: a vertical drag on a segment
   // body (away from its boundaries) moves it by whole semitones. Previewed as
   // an outline, committed on release as one undoable step.
+  // A drag on a segment body locks to an axis once it has moved a few
+  // pixels: vertical moves the pitch (above), horizontal moves the whole
+  // segment without stretching it - both its edges shift together and only
+  // the neighbours absorb the change (Melodyne's "move without stretching").
+  Note* bodyNote = nullptr;
+  float bodyDragStartX = 0.0f;
   Note* pitchNote = nullptr;
   float pitchDragStartY = 0.0f;
   int pitchDragSemitones = 0;
+  float dragAnchorFrame = 0.0f;
+  bool beginMove(Note* note, float worldX);
 };

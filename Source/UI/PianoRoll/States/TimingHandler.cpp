@@ -287,6 +287,38 @@ bool TimingHandler::keysMatch(const BoundaryKey& a, const BoundaryKey& b)
   return a.left == b.left && a.right == b.right;
 }
 
+bool TimingHandler::beginMove(Note* note, float worldX)
+{
+  const auto boundaries = buildBoundaries();
+  selectedBoundaries.clear();
+  int startIndex = -1;
+  for (size_t i = 0; i < boundaries.size(); ++i)
+  {
+    if (boundaries[i].right == note || boundaries[i].left == note)
+    {
+      addSelected(boundaries[i]);
+      if (boundaries[i].right == note)
+        startIndex = static_cast<int>(i);
+    }
+  }
+  if (startIndex < 0 || selectedBoundaries.size() < 2)
+  {
+    selectedBoundaries.clear();
+    return false;
+  }
+  activeBoundary = boundaries[static_cast<size_t>(startIndex)];
+  dragBoundaries = resolveSelection(boundaries);
+  before = captureAffected(dragBoundaries);
+  const auto deltaRange = getGroupDeltaRange(dragBoundaries);
+  minimumDelta = deltaRange.first;
+  maximumDelta = deltaRange.second;
+  previewDelta = 0.0f;
+  dragAnchorFrame = worldX / std::max(1.0f, owner_.pixelsPerSecond) *
+                    SAMPLE_RATE / static_cast<float>(HOP_SIZE);
+  dragging = true;
+  return true;
+}
+
 bool TimingHandler::isSelected(const Boundary& boundary) const
 {
   const auto key = keyFor(boundary);
@@ -349,10 +381,10 @@ bool TimingHandler::mouseDown(const juce::MouseEvent& e, float worldX,
   {
     if (auto* note = owner_.findNoteAt(worldX, worldY))
     {
-      pitchNote = note;
+      bodyNote = note;
+      bodyDragStartX = worldX;
       pitchDragStartY = worldY;
       pitchDragSemitones = 0;
-      owner_.repaint();
       return true;
     }
   }
@@ -385,6 +417,7 @@ bool TimingHandler::mouseDown(const juce::MouseEvent& e, float worldX,
   minimumDelta = deltaRange.first;
   maximumDelta = deltaRange.second;
   previewDelta = 0.0f;
+  dragAnchorFrame = activeBoundary.frame;
   dragging = true;
   owner_.repaint();
   return true;
@@ -392,6 +425,22 @@ bool TimingHandler::mouseDown(const juce::MouseEvent& e, float worldX,
 
 bool TimingHandler::mouseDrag(const juce::MouseEvent&, float worldX, float worldY)
 {
+  if (bodyNote)
+  {
+    const float dx = worldX - bodyDragStartX;
+    const float dy = worldY - pitchDragStartY;
+    if (std::max(std::abs(dx), std::abs(dy)) < 4.0f)
+      return true;
+    auto* note = bodyNote;
+    bodyNote = nullptr;
+    if (std::abs(dx) > std::abs(dy))
+    {
+      if (!beginMove(note, bodyDragStartX))
+        return true;
+    }
+    else
+      pitchNote = note;
+  }
   if (pitchNote)
   {
     const int semitones = static_cast<int>(std::lround(
@@ -413,7 +462,7 @@ bool TimingHandler::mouseDrag(const juce::MouseEvent&, float worldX, float world
 
   const float seconds = worldX / std::max(1.0f, owner_.pixelsPerSecond);
   const float frame = seconds * SAMPLE_RATE / static_cast<float>(HOP_SIZE);
-  applyPreviewDelta(frame - activeBoundary.frame);
+  applyPreviewDelta(frame - dragAnchorFrame);
   if (owner_.onPitchEdited)
     owner_.onPitchEdited();
   return true;
@@ -421,6 +470,11 @@ bool TimingHandler::mouseDrag(const juce::MouseEvent&, float worldX, float world
 
 bool TimingHandler::mouseUp(const juce::MouseEvent&, float, float)
 {
+  if (bodyNote)
+  {
+    bodyNote = nullptr; // a click on a body without a drag does nothing
+    return true;
+  }
   if (pitchNote)
   {
     auto* note = pitchNote;
@@ -526,7 +580,7 @@ void TimingHandler::mouseMove(const juce::MouseEvent& e, float worldX,
     owner_.repaint();
   }
   owner_.setMouseCursor(index >= 0 ? juce::MouseCursor::LeftRightResizeCursor
-                        : overBody  ? juce::MouseCursor::UpDownResizeCursor
+                        : overBody  ? juce::MouseCursor::DraggingHandCursor
                                     : juce::MouseCursor::NormalCursor);
 }
 
@@ -586,6 +640,7 @@ void TimingHandler::cancel()
   dragging = false;
   selecting = false;
   pitchNote = nullptr;
+  bodyNote = nullptr;
   pitchDragSemitones = 0;
   before.clear();
   dragBoundaries.clear();

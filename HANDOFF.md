@@ -952,3 +952,8 @@ VariAudio と同じく「掴んでドラッグする」もので、モードで�
   (Resources/images/bypass.png, generated). Sets the `bypass` APVTS parameter
   with a gesture; the editor timer's poll drives both the canvas and the
   button state, so host bypass and this switch stay in step.
+- **Timing tool body drag (2026-10-24, after the user's 手 Melodyne videos)**:
+  the drag locks to an axis after 4 px. Horizontal = move the segment whole
+  (both its boundaries selected and shifted together, so the segment keeps its
+  length and only neighbours stretch — "ノーツを伸縮させずにタイミングを変える").
+  Vertical = whole-semitone pitch move. Cursor is the grab hand over a body.
