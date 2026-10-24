@@ -157,7 +157,7 @@
 ## 10. 環境メモ
 
 - `gh` は使えるが **GitHub GraphQL は不可**。REST を使う（`gh api repos/{owner}/{repo}/...`）。`gh workflow run` は内部で GraphQL を叩くので失敗する → `gh api -X POST repos/Rowryu/kinu-tune/actions/workflows/windows-release.yml/dispatches -f ref=main -F 'inputs[ref]=main' -F 'inputs[directml]=true'`
-- リリースビルドは `windows-release.yml` を `directml=true` で手動実行。`diagnostics` 入力もある
+- リリースビルドは `windows-release.yml` を `directml=true` で手動実行。`diagnostics` 入力もある。**テストビルドも必ず `-f directml=true`**（付け忘れると AI リシンセシスが選べなくなる。2026-10-24 にやらかした）
 - `windows-diagnose.yml` に pluginval の3シナリオ
 
 ## 11. 2026-10-22 のセッション（PC に直接つながった回）
