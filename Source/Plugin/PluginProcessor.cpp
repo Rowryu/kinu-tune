@@ -532,8 +532,21 @@ void PitchNetAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
   juce::ScopedNoDenormals noDenormals;
   bool didProcessHostSync = false;
 
-  // Check bypass — if bypassed, pass through input unchanged
   const bool bypassed = bypassParamValue->load() >= 0.5f;
+#if JucePlugin_Enable_ARA
+  // In ARA the host's input is not the track's audio, so passing it through
+  // is not a bypass - it either does nothing audible or mutes the track.
+  // Bypass is rendered instead: every region plays its untouched source.
+  if (araDocumentController != nullptr)
+    araDocumentController->renderOriginal.store(bypassed,
+                                                std::memory_order_relaxed);
+  if (bypassed && araDocumentController != nullptr) {
+    transportController.processBlock(getPlayHead(), hostSampleRate);
+    if (processBlockForARA(buffer, isRealtime(), getPlayHead()))
+      sanitiseARAOutput(buffer);
+    return;
+  }
+#endif
   if (bypassed) {
     // Transport sync still needs to run even when bypassed
     transportController.processBlock(getPlayHead(), hostSampleRate);
@@ -590,10 +603,27 @@ void PitchNetAudioProcessor::processBlockBypassed(
     juce::AudioBuffer<float> &buffer, juce::MidiBuffer &midiMessages) {
   juce::ignoreUnused(midiMessages);
 
+#if JucePlugin_Enable_ARA
+  // Same as the bypass parameter: in ARA, render the untouched source.
+  if (araDocumentController != nullptr) {
+    araDocumentController->renderOriginal.store(true, std::memory_order_relaxed);
+    transportController.processBlock(getPlayHead(), hostSampleRate);
+    if (processBlockForARA(buffer, isRealtime(), getPlayHead()))
+      sanitiseARAOutput(buffer);
+    return;
+  }
+#endif
   // Transport sync still runs when bypassed so cursor stays in sync
   transportController.processBlock(getPlayHead(), hostSampleRate);
 
   // Input passes through unchanged (buffer already contains input)
+}
+
+juce::AudioProcessorParameter *PitchNetAudioProcessor::getBypassParameter() const {
+  // The host's own bypass button drives this parameter, so the host, the
+  // plug-in's switch and automation are one bypass. Without this JUCE made a
+  // separate hidden bypass the editor could not see.
+  return apvts.getParameter(PARAM_BYPASS);
 }
 
 void PitchNetAudioProcessor::processNonARAMode(

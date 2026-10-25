@@ -427,6 +427,10 @@ bool PitchNetPlaybackRenderer::renderProcessedRegions(
   // editor closed. The output buffer must already be cleared; regions sum into
   // it.
   bool renderedAny = false;
+  auto *bypassCtrl = getDocController();
+  const bool playOriginal =
+      bypassCtrl != nullptr &&
+      bypassCtrl->renderOriginal.load(std::memory_order_relaxed);
 
   const juce::Range<double> blockRange(
       static_cast<double>(timeInSamples) / sampleRate,
@@ -445,7 +449,8 @@ bool PitchNetPlaybackRenderer::renderProcessedRegions(
     bool renderedRegion = false;
 
     if (auto *modification =
-            region->getAudioModification<PitchNetAudioModification>()) {
+            playOriginal ? nullptr
+                         : region->getAudioModification<PitchNetAudioModification>()) {
       const auto lock = modification->tryLockProcessedAudio();
       if (lock.isLocked()) {
         // The modification owns one processed buffer and every region

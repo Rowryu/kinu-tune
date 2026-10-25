@@ -1010,3 +1010,15 @@ browser. Paraphrased takeaways and what they map to:
   to the timeline grid when grid snap is on; holding **Shift** during the drag
   places it freely (Alt was first choice but Alt-click splits and Alt-drag
   is vertical zoom, both handled before the timing handler).
+
+## 40. Bypass in ARA (2026-10-25)
+
+User: bypass "doesn't work". Cause: bypass passed the host's input buffer
+through, but in ARA that buffer is not the track's audio (the renderer
+supplies it), so bypass did nothing useful. Also the host's own bypass was a
+JUCE-made hidden parameter, separate from our `bypass` param the editor reads.
+Fix: `getBypassParameter()` returns our param (host button = our switch =
+automation); while bypassed the processor sets
+`PitchNetDocumentController::renderOriginal` and still runs the ARA renderer,
+which then skips processed audio and plays every region's raw source.
+`processBlockBypassed` does the same.
