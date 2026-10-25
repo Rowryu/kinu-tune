@@ -1,0 +1,5 @@
+Commit: 224e91a3f8f0ccc1c8eca258e1d9b59a6599632c
+Run: 40159084932
+DirectML: true
+Diagnostics: false
+Zip: Kisyo-Tune-test-224e91a3-dml-Windows-x64-plugin-only.zip
