@@ -281,6 +281,8 @@
   "update.skip_version": "Skip This Version",
   "update.title": "Update Available",
   "harmony.title": "Harmony",
+  "harmony.chords": "Chords from",
+  "harmony.chords_none": "None (key only)",
   "harmony.third": "3rd",
   "harmony.fourth": "4th",
   "harmony.fifth": "5th",

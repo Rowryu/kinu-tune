@@ -778,7 +778,11 @@ MainComponent::MainComponent(bool enableAudioDevice)
   auto &harmonyPanel = variAudioInspector.getHarmonyPanel();
   harmonyPanel.onHarmonyRequested =
       [this](HarmonyUtils::Interval interval, bool up)
-  { return pianoRoll.applyHarmonyInterval(interval, up); };
+  {
+    return pianoRoll.applyHarmonyInterval(
+        interval, up,
+        variAudioInspector.getHarmonyPanel().chordsForHarmony());
+  };
 
   // MIDI guide pitch correction. The panel owns the guide and the settings;
   // this closure owns the project, the undo record and the redraw, so the
@@ -3145,9 +3149,18 @@ void MainComponent::setGuideTrackProvider(
         buildGuide)
 {
   auto &panel = variAudioInspector.getMidiGuidePanel();
+  variAudioInspector.getHarmonyPanel().listChordTracks = listTracks;
   panel.listGuideTracks = std::move(listTracks);
   panel.buildGuideFromTrack = std::move(buildGuide);
   panel.refreshGuideSources();
+}
+
+void MainComponent::setChordTrackProvider(
+    std::function<std::vector<correction::ChordSpan>(const juce::String &)>
+        buildChords)
+{
+  variAudioInspector.getHarmonyPanel().buildChordsFromTrack =
+      std::move(buildChords);
 }
 
 void MainComponent::notifyProjectDataChanged()

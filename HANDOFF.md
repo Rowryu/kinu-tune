@@ -1022,3 +1022,20 @@ automation); while bypassed the processor sets
 `PitchNetDocumentController::renderOriginal` and still runs the ARA renderer,
 which then skips processed audio and plays every region's raw source.
 `processBlockBypassed` does the same.
+
+## 41. Chord-following harmony (2026-10-25)
+
+User wants harmony that avoids dissonance (like iZotope Nectar), chords read
+automatically from the instrumental track. Harmony was already diatonic to
+the chosen key; clashes come from not knowing the chord.
+- `ChordEstimation.*` (tests/ChordEstimationTests): chromagram (Hann ~93 ms,
+  65 Hz–2.1 kHz, every 4th frame), templates maj/min/7/m7/dim/sus4 × 12 roots
+  + no-chord, Viterbi with a switch penalty, spans < 0.3 s folded.
+  `chordAwareTarget`: keep the diatonic note if it is a chord tone, else the
+  nearest chord tone within ±2 st on the same side of the melody and ≥ a minor
+  third from it, in-key preferred; else unchanged.
+- Harmony card: 「コード参照」 combo listing the tracks (same list as guide
+  tracks). The instrumental track needs Kisyo Tune on it so it is in the ARA
+  document. `PluginEditor::buildChordsFromTrack` reads that track's analysed
+  audio, estimates chords, maps spans onto the active region via the host
+  timeline; `applyHarmonyInterval(interval, up, chords)` uses them.

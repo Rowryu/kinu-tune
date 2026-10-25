@@ -22,6 +22,8 @@ constexpr int kNumRows = 5;
 
 constexpr int kPreferredHeight =
     kCardPadY * 2 + kInnerPadY * 2 + kSectionLabelHeight + kRowGap +
+    kButtonRowHeight + kRowGap + // chord source
+
     kNumRows * kButtonRowHeight +
     (kNumRows - 1) * kRowGap + kRowGap + kHintRowHeight + kStatusRowHeight;
 
@@ -57,6 +59,11 @@ HarmonyPanel::HarmonyPanel()
     hintLabel.setFont(AppFont::getFont(12.0f));
     hintLabel.setColour(juce::Label::textColourId, APP_COLOR_TEXT_MUTED);
     addAndMakeVisible(hintLabel);
+
+    chordLabel.setFont(AppFont::getFont(14.0f));
+    chordLabel.setColour(juce::Label::textColourId, APP_COLOR_TEXT_PRIMARY);
+    addAndMakeVisible(chordLabel);
+    addAndMakeVisible(chordBox);
 
     statusLabel.setFont(AppFont::getFont(12.0f));
     statusLabel.setColour(juce::Label::textColourId, APP_COLOR_TEXT_MUTED);
@@ -102,6 +109,10 @@ void HarmonyPanel::refreshLocalisedText()
 {
     sectionLabel.setText(TR("harmony.title"), juce::dontSendNotification);
     hintLabel.setText(TR("harmony.hint"), juce::dontSendNotification);
+    chordLabel.setText(TR("harmony.chords"), juce::dontSendNotification);
+    chordTrackKeys.clear(); // forces the menu to be rebuilt in this language
+    chordBox.clear(juce::dontSendNotification);
+    refreshChordSources();
     for (auto& row : rows)
     {
         row.label.setText(TR(row.labelKey), juce::dontSendNotification);
@@ -116,6 +127,46 @@ void HarmonyPanel::refreshLocalisedText()
 void HarmonyPanel::timerCallback()
 {
     refreshKeyState();
+    refreshChordSources();
+}
+
+void HarmonyPanel::refreshChordSources()
+{
+    std::vector<MainViewTrackEntry> tracks;
+    if (listChordTracks)
+        tracks = listChordTracks();
+    std::vector<juce::String> keys;
+    for (const auto& t : tracks)
+        keys.push_back(t.key);
+    if (keys == chordTrackKeys && chordBox.getNumItems() > 0)
+        return;
+
+    const auto previous = chordBox.getSelectedId() >= 2 &&
+                                  chordBox.getSelectedId() - 2 <
+                                      static_cast<int>(chordTrackKeys.size())
+                              ? chordTrackKeys[static_cast<size_t>(chordBox.getSelectedId() - 2)]
+                              : juce::String();
+    chordTrackKeys = keys;
+    chordBox.clear(juce::dontSendNotification);
+    chordBox.addItem(TR("harmony.chords_none"), 1);
+    int restore = 1;
+    for (size_t i = 0; i < tracks.size(); ++i)
+    {
+        chordBox.addItem(tracks[i].name.isNotEmpty() ? tracks[i].name : tracks[i].key,
+                         static_cast<int>(i) + 2);
+        if (tracks[i].key == previous)
+            restore = static_cast<int>(i) + 2;
+    }
+    chordBox.setSelectedId(restore, juce::dontSendNotification);
+}
+
+std::vector<correction::ChordSpan> HarmonyPanel::chordsForHarmony() const
+{
+    const int id = chordBox.getSelectedId();
+    if (id < 2 || id - 2 >= static_cast<int>(chordTrackKeys.size()) ||
+        !buildChordsFromTrack)
+        return {};
+    return buildChordsFromTrack(chordTrackKeys[static_cast<size_t>(id - 2)]);
 }
 
 void HarmonyPanel::refreshKeyState()
@@ -204,6 +255,12 @@ void HarmonyPanel::resized()
     auto bounds = card.reduced(kInnerPadX, kInnerPadY);
     sectionLabel.setBounds(bounds.removeFromTop(kSectionLabelHeight));
     bounds.removeFromTop(kRowGap);
+    {
+        auto chordRow = bounds.removeFromTop(kButtonRowHeight);
+        chordLabel.setBounds(chordRow.removeFromLeft(kLabelColumnWidth));
+        chordBox.setBounds(chordRow);
+        bounds.removeFromTop(kRowGap);
+    }
 
     for (size_t i = 0; i < rows.size(); ++i)
     {

@@ -279,6 +279,8 @@
   "update.skip_version": "このバージョンをスキップ",
   "update.title": "アップデートがあります",
   "harmony.title": "ハモリ",
+  "harmony.chords": "コード参照",
+  "harmony.chords_none": "使わない（キーのみ）",
   "harmony.third": "3度",
   "harmony.fourth": "4度",
   "harmony.fifth": "5度",

@@ -1,5 +1,7 @@
 {
   "timing.split_syllables": "先拆分連在一起的音節",
+  "harmony.chords": "參考和弦",
+  "harmony.chords_none": "不使用（僅調性）",
   "pitch_drawing.apply_prompt": "套用新的音高曲線？",
   "canvas.pitch_drawing": "繪製",
   "canvas.select": "選擇",

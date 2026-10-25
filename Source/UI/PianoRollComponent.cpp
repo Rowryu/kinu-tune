@@ -3716,6 +3716,13 @@ void PianoRollComponent::selectFollowingSamePitch(Note &note)
 HarmonyUtils::Result PianoRollComponent::applyHarmonyInterval(
     HarmonyUtils::Interval interval, bool up)
 {
+  return applyHarmonyInterval(interval, up, {});
+}
+
+HarmonyUtils::Result PianoRollComponent::applyHarmonyInterval(
+    HarmonyUtils::Interval interval, bool up,
+    const std::vector<correction::ChordSpan> &chords)
+{
   if (project == nullptr)
     return HarmonyUtils::Result::NoNotes;
 
@@ -3734,17 +3741,43 @@ HarmonyUtils::Result PianoRollComponent::applyHarmonyInterval(
       targets.push_back(&note);
 
   const int referenceHz = pitchReferenceHz;
+  // The key's pitch classes as absolute bits (bit 0 = C), for preferring
+  // in-key chord tones.
+  unsigned scaleMask = 0;
+  if (keyRoot >= 0)
+  {
+    const auto relative = ScaleUtils::getIntervalMaskForMode(keyMode);
+    for (int i = 0; i < 12; ++i)
+      if ((relative & ScaleUtils::intervalBit(i)) != 0)
+        scaleMask |= 1u << ((i + keyRoot) % 12);
+  }
   int outOfRangeCount = 0;
   const bool moved = shiftNotesBySemitones(
       targets,
-      [interval, up, keyMode, keyRoot, referenceHz,
+      [interval, up, keyMode, keyRoot, referenceHz, &chords, scaleMask,
        &outOfRangeCount](const Note &note) -> std::optional<float>
       {
         const float adjustedMidi = note.getAdjustedMidiNote();
-        const auto shift = HarmonyUtils::intervalShiftSemitones(
+        auto shift = HarmonyUtils::intervalShiftSemitones(
             adjustedMidi, interval, up, keyMode, keyRoot, referenceHz);
         if (!shift)
           return std::nullopt;
+
+        // Follow the chord: a third that clashes with the chord under the
+        // note becomes the nearest chord tone (octaves are left alone).
+        if (!chords.empty() && interval != HarmonyUtils::Interval::Octave)
+        {
+          const unsigned chordMask = correction::chordMaskFor(
+              chords, note.getStartFrame(), note.getEndFrame());
+          const float offset =
+              ScaleUtils::getReferenceOffsetSemitones(referenceHz);
+          const int melody =
+              static_cast<int>(std::lround(adjustedMidi - offset));
+          const int diatonic = melody + *shift;
+          const int target = correction::chordAwareTarget(
+              melody, diatonic, chordMask, scaleMask);
+          shift = *shift + (target - diatonic);
+        }
 
         // Clamping at the editor's range would land on an arbitrary,
         // possibly out-of-key pitch, so such notes stay where they are.

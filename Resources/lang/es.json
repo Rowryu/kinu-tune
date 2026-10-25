@@ -1,5 +1,7 @@
 {
   "timing.split_syllables": "Separar primero sílabas unidas",
+  "harmony.chords": "Acordes de",
+  "harmony.chords_none": "Ninguno (solo tonalidad)",
   "pitch_drawing.apply_prompt": "¿Aplicar la nueva curva de tono?",
   "canvas.pitch_drawing": "Dibujo",
   "canvas.select": "Seleccionar",

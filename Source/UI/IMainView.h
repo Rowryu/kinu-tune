@@ -2,6 +2,7 @@
 
 #include "../Audio/Correction/MidiGuideTypes.h"
 #include "../Audio/Correction/TempoMap.h"
+#include "../Audio/Correction/ChordEstimation.h"
 #include "../JuceHeader.h"
 #include "RegionPreview.h"
 #include <functional>
@@ -131,6 +132,11 @@ public:
   /** Host time, in seconds, of the edited region's frame zero. */
   virtual void setProjectHostOffsetProvider(
       std::function<double()> getOffsetSeconds) = 0;
+  /** Chords read from another track (an instrumental), already on the
+      active project's frame grid. Harmony follows them when chosen. */
+  virtual void setChordTrackProvider(
+      std::function<std::vector<correction::ChordSpan>(const juce::String &)>
+          buildChords) = 0;
   virtual void setGuideTrackProvider(
       std::function<std::vector<MainViewTrackEntry>()> listTracks,
       std::function<std::vector<correction::GuideNote>(const juce::String &)>

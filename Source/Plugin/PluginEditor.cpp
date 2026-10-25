@@ -4,6 +4,7 @@
 #include "../Audio/Correction/RegionMapping.h"
 #include "../Audio/Correction/TimingAnchors.h"
 #include "../Audio/Correction/TimingCorrection.h"
+#include "../Audio/Correction/ChordEstimation.h"
 #include "../Utils/AppLogger.h"
 #include "../Utils/Constants.h"
 #include "../Undo/ContextUndoAction.h"
@@ -373,6 +374,9 @@ void PitchNetAudioProcessorEditor::setupARAMode() {
 
   // A guide can come from another track that has the plug-in on it, which is
   // only possible under ARA: every instance shares one document.
+  mainView->setChordTrackProvider([this](const juce::String &trackKey) {
+    return buildChordsFromTrack(trackKey);
+  });
   mainView->setGuideTrackProvider(
       [this] { return listGuideTrackCandidates(); },
       [this](const juce::String &trackKey) {
@@ -955,6 +959,72 @@ PitchNetAudioProcessorEditor::buildGuideFromTrack(const juce::String &trackKey) 
               return a.startFrame < b.startFrame;
             });
 
+  return result;
+}
+
+std::vector<correction::ChordSpan>
+PitchNetAudioProcessorEditor::buildChordsFromTrack(const juce::String &trackKey) {
+  std::vector<correction::ChordSpan> result;
+  auto *active = activeAraRegion();
+  if (active == nullptr || trackKey.isEmpty())
+    return result;
+
+  std::uint64_t activeRevision = 0;
+  bool activeFromCanvas = false;
+  const Project *activeProject = audioProcessor.getAraProjectForPreview(
+      active->getAudioModification<PitchNetAudioModification>(), activeRevision,
+      activeFromCanvas);
+  if (activeProject == nullptr)
+    return result;
+  const auto to = placementForRegion(active, *activeProject);
+
+  for (auto *region : collectDocumentPlaybackRegions()) {
+    if (region == nullptr || araTrackKey(region->getRegionSequence()) != trackKey)
+      continue;
+    std::uint64_t revision = 0;
+    bool fromCanvas = false;
+    const Project *source = audioProcessor.getAraProjectForPreview(
+        region->getAudioModification<PitchNetAudioModification>(), revision,
+        fromCanvas);
+    if (source == nullptr)
+      continue;
+
+    // The instrumental's own audio, mixed to mono, on its own frame grid.
+    const auto &audio = source->getAudioData();
+    const auto &wave = audio.originalWaveform.getNumSamples() > 0
+                           ? audio.originalWaveform : audio.waveform;
+    const int channels = wave.getNumChannels();
+    const int samples = wave.getNumSamples();
+    if (channels == 0 || samples == 0 || audio.sampleRate <= 0)
+      continue;
+    std::vector<float> mono(static_cast<size_t>(samples), 0.0f);
+    for (int c = 0; c < channels; ++c) {
+      const float *data = wave.getReadPointer(c);
+      for (int i = 0; i < samples; ++i)
+        mono[static_cast<size_t>(i)] += data[i] / static_cast<float>(channels);
+    }
+    const double hopSamples = static_cast<double>(HOP_SIZE) * audio.sampleRate /
+                              static_cast<double>(SAMPLE_RATE);
+    const int frames = static_cast<int>(samples / hopSamples);
+    const double fps = static_cast<double>(SAMPLE_RATE) / static_cast<double>(HOP_SIZE);
+    const auto chords = correction::estimateChords(
+        correction::chromagram(mono, audio.sampleRate, hopSamples, frames), fps);
+
+    // Onto the active region's frames, through the host timeline.
+    const auto from = placementForRegion(region, *source);
+    for (auto span : chords) {
+      const double a = correction::mapFrameBetweenRegions(span.startFrame, from, to);
+      const double b = correction::mapFrameBetweenRegions(span.endFrame, from, to);
+      span.startFrame = static_cast<int>(std::floor(a));
+      span.endFrame = static_cast<int>(std::ceil(b));
+      if (span.endFrame > span.startFrame)
+        result.push_back(span);
+    }
+  }
+  std::sort(result.begin(), result.end(),
+            [](const correction::ChordSpan &a, const correction::ChordSpan &b) {
+              return a.startFrame < b.startFrame;
+            });
   return result;
 }
 

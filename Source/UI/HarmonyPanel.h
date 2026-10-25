@@ -7,6 +7,8 @@
 #include "../JuceHeader.h"
 #include "../Models/Project.h"
 #include "../Utils/HarmonyUtils.h"
+#include "../Audio/Correction/ChordEstimation.h"
+#include "IMainView.h"
 #include "../Utils/Localization.h"
 #include "Workspace/PanelContent.h"
 #include <array>
@@ -42,6 +44,16 @@ public:
     std::function<HarmonyUtils::Result(HarmonyUtils::Interval, bool)>
         onHarmonyRequested;
 
+    /// Tracks the chords may be read from (an instrumental track with the
+    /// plug-in on it), and the chords read from one, on this project's grid.
+    std::function<std::vector<MainViewTrackEntry>()> listChordTracks;
+    std::function<std::vector<correction::ChordSpan>(const juce::String&)>
+        buildChordsFromTrack;
+
+    /// Chords for the next harmony, or empty when none is chosen: the harmony
+    /// then follows the key alone, as before.
+    std::vector<correction::ChordSpan> chordsForHarmony() const;
+
 private:
     struct IntervalRow
     {
@@ -65,6 +77,11 @@ private:
     bool hadProject = false;
     int shownRoot = -2;
     ScaleMode shownMode = ScaleMode::None;
+
+    void refreshChordSources();
+    std::vector<juce::String> chordTrackKeys; // index i -> combo id i + 2
+    juce::Label chordLabel;
+    juce::ComboBox chordBox;
 
     juce::Label sectionLabel;
     juce::Label hintLabel;

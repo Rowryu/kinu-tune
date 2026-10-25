@@ -221,6 +221,9 @@ public:
       override;
   void setProjectHostOffsetProvider(
       std::function<double()> getOffsetSeconds) override;
+  void setChordTrackProvider(
+      std::function<std::vector<correction::ChordSpan>(const juce::String &)>
+          buildChords) override;
   void setGuideTrackProvider(
       std::function<std::vector<MainViewTrackEntry>()> listTracks,
       std::function<std::vector<correction::GuideNote>(const juce::String &)>

@@ -4,6 +4,7 @@
 #include "../Models/Project.h"
 #include "../Utils/Constants.h"
 #include "../Utils/HarmonyUtils.h"
+#include "../Audio/Correction/ChordEstimation.h"
 #include "../Utils/TransformParams.h"
 #include "../Utils/Localization.h"
 #include "../Utils/BasePitchPreview.h"
@@ -100,6 +101,11 @@ public:
 
   // Moves the selected notes (or every note when nothing is selected) by a
   // scale-degree interval in the project key, as one undoable step.
+  /// With `chords` (on this project's frames), a harmony note that clashes
+  /// with the chord under it moves to the nearest chord tone; empty = key only.
+  HarmonyUtils::Result applyHarmonyInterval(
+      HarmonyUtils::Interval interval, bool up,
+      const std::vector<correction::ChordSpan> &chords);
   HarmonyUtils::Result applyHarmonyInterval(HarmonyUtils::Interval interval,
                                             bool up);
 

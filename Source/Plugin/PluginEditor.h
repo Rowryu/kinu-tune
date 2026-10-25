@@ -76,6 +76,10 @@ private:
     std::vector<MainViewTrackEntry> listGuideTrackCandidates();
     std::vector<correction::GuideNote> buildGuideFromTrack(
         const juce::String &trackKey);
+    /// Chords of another track (an instrumental with the plug-in on it), read
+    /// from its audio and placed on the active region's frames.
+    std::vector<correction::ChordSpan> buildChordsFromTrack(
+        const juce::String &trackKey);
     // Switch the canvas to a region the user picked in the Regions card, or
     // clicked on the canvas. A canvas click leaves the view where it is
     // (focusView = false): the region is already on screen.
