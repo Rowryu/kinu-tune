@@ -109,10 +109,6 @@ struct AraPreviewState {
   std::shared_ptr<juce::AudioBuffer<float>> auditionBuffer;
   std::atomic<double> editorRendererSampleRate{0.0};
   std::atomic<bool> auditionActive{false};
-  // Bypass in ARA playback: every region plays its raw source instead of its
-  // processed audio. The host's input buffer cannot stand in for this - in
-  // ARA it carries nothing meaningful - so bypass has to be rendered here.
-  std::atomic<bool> renderOriginal{false};
   // Diagnostics for the drag audition, written on the audio thread and read
   // when the audition stops: blocks this document actually filled with
   // audition audio, and blocks a renderer skipped because it does not own
@@ -362,6 +358,12 @@ public:
       ARADocumentControllerSpecialisation;
 
   ~PitchNetDocumentController() override;
+
+  // Bypass in ARA playback: every region plays its raw source instead of its
+  // processed audio. The host's input buffer cannot stand in for this - in
+  // ARA it carries nothing meaningful - so bypass has to be rendered here.
+  std::atomic<bool> renderOriginal{false};
+
   void willBeginEditing(juce::ARADocument *document) override;
   void didEndEditing(juce::ARADocument *document) override;
 
