@@ -1,0 +1,33 @@
+Test project /Users/runner/work/kinu-tune/kinu-tune/build
+      Start  4: GuidedPitchCorrectionTests
+ 1/14 Test  #4: GuidedPitchCorrectionTests .......   Passed    0.01 sec
+      Start  5: GuideSourceTests
+ 2/14 Test  #5: GuideSourceTests .................   Passed    0.01 sec
+      Start  6: MidiFileReaderTests
+ 3/14 Test  #6: MidiFileReaderTests ..............   Passed    0.01 sec
+      Start  7: MidiGuideCorrectionTests
+ 4/14 Test  #7: MidiGuideCorrectionTests .........   Passed    0.01 sec
+      Start  8: RegionMappingTests
+ 5/14 Test  #8: RegionMappingTests ...............   Passed    0.01 sec
+      Start  9: TimingAnchorsTests
+ 6/14 Test  #9: TimingAnchorsTests ...............   Passed    0.01 sec
+      Start 10: TimingCorrectionTests
+ 7/14 Test #10: TimingCorrectionTests ............   Passed    0.01 sec
+      Start 11: TransitionSmoothingTests
+ 8/14 Test #11: TransitionSmoothingTests .........   Passed    0.01 sec
+      Start 12: TimingMapTests
+ 9/14 Test #12: TimingMapTests ...................   Passed    0.01 sec
+      Start 13: TempoMapTests
+10/14 Test #13: TempoMapTests ....................   Passed    0.01 sec
+      Start 14: NoteCentreTests
+11/14 Test #14: NoteCentreTests ..................   Passed    0.01 sec
+      Start 15: RetimeMappingTests
+12/14 Test #15: RetimeMappingTests ...............   Passed    0.01 sec
+      Start 16: SyllableOnsetTests
+13/14 Test #16: SyllableOnsetTests ...............   Passed    0.01 sec
+      Start 17: ChordEstimationTests
+14/14 Test #17: ChordEstimationTests .............   Passed    0.04 sec
+
+100% tests passed out of 14
+
+Total Test time (real) =   0.19 sec
